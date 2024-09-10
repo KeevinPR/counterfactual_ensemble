@@ -84,7 +84,7 @@ button:focus {
 }
 
 .dash-table th {
-    background-color: #007bff;
+    background-color: #00A2E1;
     color: white;
 }
 
@@ -109,6 +109,15 @@ button:focus {
 }
 
 #results-table th {
+    background-color: #00A2E1;
+    color: white;
+}
+
+#selected-row-table th {
+    background-color: #00A2E1;
+    color: white;
+}
+#predictor-table th{
     background-color: #00A2E1;
     color: white;
 }
