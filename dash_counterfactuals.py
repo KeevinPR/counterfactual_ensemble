@@ -11,12 +11,14 @@ app = dash.Dash(__name__, requests_pathname_prefix='/Reasoning/CounterfactualsDa
 # Layout de la aplicación
 app.layout = html.Div([
     # Componente para subir el archivo
-    html.H3("Sube tu archivo CSV"),
-    dcc.Upload(
-        id='upload-data',
-        children=html.Button('Subir archivo'),
-        multiple=False  # Solo permitimos un archivo a la vez
-    ),
+    html.H3("Subir el dataset"),
+    html.Div([
+        dcc.Upload(
+            id='upload-data',
+            children=html.Button('Subir archivo', className='btn-upload'),  # Añadir clase al botón
+            multiple=False  # Solo permitimos un archivo a la vez
+        )
+    ], className="upload-container"),  # Centrar el botón con la clase 'upload-container'
 
     html.Br(),
 
@@ -52,8 +54,10 @@ app.layout = html.Div([
 
     html.Br(),
 
-    # Botón de Run
-    html.Button('Run', id='run-button'),
+    # Botón de Run, ahora con la clase para centrarlo y aplicar estilo
+    html.Div([
+        html.Button('Run', id='run-button')
+    ], className="run-container"),  # Centrar el botón con la clase 'run-container'
 
     html.Br(),
 
@@ -65,6 +69,8 @@ app.layout = html.Div([
         data=[]  # Inicialmente vacío
     )
 ])
+
+
 
 
 # Función para parsear el archivo CSV subido
