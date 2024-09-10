@@ -11,11 +11,11 @@ app = dash.Dash(__name__, requests_pathname_prefix='/Reasoning/CounterfactualsDa
 # Layout de la aplicación
 app.layout = html.Div([
     # Componente para subir el archivo
-    html.H3("Subir el dataset"),
+    html.H3("Upload Dataset"),
     html.Div([
         dcc.Upload(
             id='upload-data',
-            children=html.Button('Subir archivo', className='btn-upload'),  # Añadir clase al botón
+            children=html.Button('Upload File', className='btn-upload'),  # Añadir clase al botón
             multiple=False  # Solo permitimos un archivo a la vez
         )
     ], className="upload-container"),  # Centrar el botón con la clase 'upload-container'
@@ -40,7 +40,7 @@ app.layout = html.Div([
 
     # Contenedor del Dropdown para seleccionar la clase
     html.Div([
-        html.Label("Clase:"),
+        html.Label("Class:"),
         dcc.Dropdown(id='class-selector')
     ], id='class-container', style={'display': 'none'}),  # Oculto hasta que se selecciona una fila
 
@@ -114,8 +114,8 @@ def display_selected_row(selected_rows, data):
     selected_row = selected_rows[0]
     row_data = data[selected_row]
     return html.Div([
-        html.H4(f"Fila seleccionada: {selected_row}"),
-        html.P(f"Datos: {row_data}")
+        html.H4(f"Selected row: {selected_row}"),
+        html.P(f"Data: {row_data}")
     ])
 
 # Callback para mostrar el dropdown de clases cuando se selecciona una fila
