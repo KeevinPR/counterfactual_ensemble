@@ -11,7 +11,7 @@ body {
 
 /* Estilo de los encabezados */
 h3 {
-    color: #007bff;
+    color: #00A2E1;
     font-size: 24px;
     font-weight: bold;
     text-align: center;
@@ -31,7 +31,7 @@ button {
 }
 
 button:hover {
-    background-color: #0056b3; /* Azul más oscuro al pasar el ratón */
+    background-color: #007bff; /* Azul más oscuro al pasar el ratón */
 }
 
 button:focus {
@@ -57,7 +57,7 @@ button:focus {
 }
 
 #run-button:hover {
-    background-color: #0056b3; /* Verde más oscuro al pasar el ratón */
+    background-color: #007bff; /* Verde más oscuro al pasar el ratón */
 }
 
 #run-button:focus {
