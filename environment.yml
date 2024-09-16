@@ -1,10 +1,19 @@
 name: dash_counterfactuals
 channels:
   - defaults
+  - conda-forge
 dependencies:
   - python=3.8
-  - dash
+  - numpy
   - pandas
-  - pip  
+  - scikit-learn
+  - dash
+  - dash-table
+  - r-base
+  - r-essentials
+  - rpy2
+  - r-bnclassify
+  - r-e1071
+  - pip
   - pip:
-      - dash-bootstrap-components  # Instalando desde PyPI
+      - dash-bootstrap-components  # Installed from PyPI
