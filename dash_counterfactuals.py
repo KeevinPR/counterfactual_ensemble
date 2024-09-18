@@ -45,7 +45,7 @@ app.layout = html.Div([
             columnDefs=[],  # Column Definitions for selected row
             rowData=[],  # Data for the selected row
             defaultColDef={'editable': False, 'resizable': True},  # Set default column behavior
-            style={'height': '100px', 'width': '100%'}
+            style={'height': '100px'}
         )
     ], id='selected-row-container', style={'display': 'none'}),  # Hide until a row is selected
 
@@ -119,8 +119,8 @@ def update_predictor_table(contents, filename):
         data = df.to_dict('records')
         # Calculate total grid width based on column widths
         total_width = sum([col['width'] for col in columns])
-        return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}
-    return [], [], {'height': '300px', 'width': '100%'}, {'display': 'none'}
+        return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}
+    return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}
 
 # Callback to handle row selection and update class dropdown
 @app.callback(
@@ -138,13 +138,14 @@ def display_selected_row_and_class(selectedRows, data):
     if selectedRows:
         selected_row = selectedRows[0]  # This is already a dictionary
         row_data = [selected_row]
-        columns = [{'headerName': i, 'field': i} for i in selected_row.keys()]
+        columns = [{'headerName': i, 'field': i, 'width': 200} for i in selected_row.keys()]
 
         # Extract class options for dropdown
         if 'class' in selected_row:
+            total_width = sum([col['width'] for col in columns])
             class_options = [{'label': cls, 'value': cls} for cls in set([row['class'] for row in data])]
             class_value = selected_row['class']
-            return row_data, columns, {'display': 'block'}, class_options, class_value, {'display': 'block'}, {'display': 'block'}
+            return row_data, columns, {'display': 'block', 'width': f'{total_width}px'}, class_options, class_value, {'display': 'block'}, {'display': 'block'}
 
     return [], [], {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
 
@@ -164,6 +165,7 @@ def run_counterfactual(n_clicks, selectedRows, new_class, num_models):
 
     selected_row = selectedRows[0]  # Already a dict
     row_data = selected_row.copy()
+    columns = [{'headerName': i, 'field': i, 'width': 200} for i in selected_row.keys()]
 
     # Logic to generate counterfactual (simplified)
     original_row = row_data.copy()
@@ -172,7 +174,8 @@ def run_counterfactual(n_clicks, selectedRows, new_class, num_models):
 
     results_data = [original_row, new_row]
     results_columns = [{'headerName': i, 'field': i} for i in original_row.keys()]
-    return results_data, results_columns, {'display': 'block'}
+    total_width = sum([col['width'] for col in columns])
+    return results_data, results_columns, {'display': 'block','width': f'{total_width}px'}
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8050)
