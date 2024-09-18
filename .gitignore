@@ -9,3 +9,4 @@ ensemble_counterfactuals/algorithms/__pycache__/moebna.cpython-38.pyc
 ensemble_counterfactuals/algorithms/__pycache__/moeda.cpython-38.pyc
 ensemble_counterfactuals/algorithms/__pycache__/nsga2.cpython-38.pyc
 __pycache__/counterfactuals_logic.cpython-38.pyc
+execution example.ipynb
