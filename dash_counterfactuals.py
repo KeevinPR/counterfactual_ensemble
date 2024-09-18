@@ -29,9 +29,9 @@ app.layout = html.Div([
             id='predictor-table',
             columnDefs=[],  # Column Definitions will be filled after file upload
             rowData=[],  # Data will be filled after file upload
-            defaultColDef={'editable': False},
+            defaultColDef={'editable': False, 'resizable': True, 'sortable': True},  # Set default column behavior
             dashGridOptions={'rowSelection': 'single'},  # Enable single row selection
-            style={'height': '300px', 'width': '100%'}
+            style={'height': '300px'}  # We'll dynamically set the width later
         )
     ], id='predictor-container', style={'display': 'none'}),  # Hide until file is uploaded
 
@@ -44,7 +44,7 @@ app.layout = html.Div([
             id='selected-row-table',
             columnDefs=[],  # Column Definitions for selected row
             rowData=[],  # Data for the selected row
-            defaultColDef={'editable': False},
+            defaultColDef={'editable': False, 'resizable': True},  # Set default column behavior
             style={'height': '100px', 'width': '100%'}
         )
     ], id='selected-row-container', style={'display': 'none'}),  # Hide until a row is selected
@@ -80,7 +80,8 @@ app.layout = html.Div([
             id='results-table',
             columnDefs=[],  # Column Definitions for results
             rowData=[],  # Data for the results
-            style={'height': '200px', 'width': '100%'}
+            defaultColDef={'resizable': True},  # Make columns resizable
+            style={'height': '200px'}  # Dynamically handle the width later
         )
     ], id='results-container', style={'display': 'none'})  # Hide until results are generated
 ])
@@ -94,6 +95,8 @@ def parse_contents(contents, filename):
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif 'xls' in filename:
             df = pd.read_excel(io.BytesIO(decoded))
+        # Reset the index to avoid including it in rowData
+        df = df.reset_index(drop=True)
         return df
     except Exception as e:
         print(e)
@@ -103,6 +106,7 @@ def parse_contents(contents, filename):
 @app.callback(
     [Output('predictor-table', 'rowData'),
      Output('predictor-table', 'columnDefs'),
+     Output('predictor-table', 'style'),
      Output('predictor-container', 'style')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename')
@@ -110,10 +114,13 @@ def parse_contents(contents, filename):
 def update_predictor_table(contents, filename):
     if contents is not None:
         df = parse_contents(contents, filename)
-        columns = [{'headerName': i, 'field': i} for i in df.columns]
+        # Only include columns with data and avoid any extra or index columns
+        columns = [{'headerName': i, 'field': i, 'width': 200} for i in df.columns]
         data = df.to_dict('records')
-        return data, columns, {'display': 'block'}
-    return [], [], {'display': 'none'}
+        # Calculate total grid width based on column widths
+        total_width = sum([col['width'] for col in columns])
+        return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}
+    return [], [], {'height': '300px', 'width': '100%'}, {'display': 'none'}
 
 # Callback to handle row selection and update class dropdown
 @app.callback(
