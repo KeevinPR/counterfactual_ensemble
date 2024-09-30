@@ -4,9 +4,16 @@ import pandas as pd
 import base64
 import io
 from dash_ag_grid import AgGrid
+import numpy as np
+from sklearn.model_selection import train_test_split
+from ensemble_counterfactuals.common_funcs import train_models
+from ensemble_counterfactuals.algorithms import ga, eda, moeda, nsga2, ebna, moebna
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri, default_converter
 
-# Import the generate_counterfactuals function
-from counterfactuals_logic import generate_counterfactuals
+# Activate the pandas2ri conversion globally
+pandas2ri.activate()
+robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
 
 # Initialize the Dash app
 app = dash.Dash(
@@ -184,7 +191,8 @@ def display_selected_row_and_class(selectedRows, data):
             )
     return [], [], {}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
 
-# Callback to run counterfactual generation
+
+# Callback para ejecutar la generación de contrafactuales
 @app.callback(
     [Output('results-table', 'rowData'),
      Output('results-table', 'columnDefs'),
@@ -206,12 +214,66 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class):
     df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, uploaded_df)
 
     if df_counterfactual is not None:
+        # Convert the pandas DataFrame to R DataFrame
+        r_from_pd_df = robjects.conversion.py2rpy(df_counterfactual)
+        robjects.globalenv['r_from_pd_df'] = r_from_pd_df  # Assign to global environment in R
+
         data = df_counterfactual.to_dict('records')
         columns = [{'headerName': col, 'field': col, 'width': 200} for col in df_counterfactual.columns]
         total_width = sum([col['width'] for col in columns])
         return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}
     else:
         return [], [], {}, {'display': 'none'}
+
+def generate_counterfactuals(selected_row, new_class, num_models, df):
+    if 'class' not in df.columns:
+        raise ValueError("The dataframe does not contain a 'class' column.")
+
+    # Prepare data
+    X = df.drop(columns=['class']).copy()
+    y = df['class'].copy()
+    selected_row_df = pd.DataFrame([selected_row])[X.columns]
+    X_train = X[~(X == selected_row_df.iloc[0]).all(axis=1)]
+    test_df = selected_row_df.copy()
+
+    # Combine X_train and y to create the training DataFrame
+    df_train = X_train.copy()
+    df_train['class'] = y.loc[X_train.index]
+
+    # Rename 'class' to 'class_label' for R
+    df_train_for_R = df_train.rename(columns={'class': 'class_label'})
+    test_df_for_R = test_df.copy()
+    test_df_for_R['class_label'] = new_class
+
+    # Print the type of robjects.conversion for debugging
+    print("Type of robjects.conversion:", type(robjects.conversion))
+
+    # Convert pandas DataFrames to R DataFrames
+    r_df_train_for_R = robjects.conversion.py2rpy(df_train_for_R)
+    r_test_df_for_R = robjects.conversion.py2rpy(test_df_for_R)
+
+    robjects.globalenv['r_df_train_for_R'] = r_df_train_for_R
+    robjects.globalenv['r_test_df_for_R'] = r_test_df_for_R
+
+    # Train models
+    train_models(df_train_for_R, test_df_for_R)
+
+    # Generate counterfactuals
+    input_instance = test_df.iloc[0].values
+    df_result, _, accuracy, time_taken = eda.ensemble_counter_eda(
+        X=df_train_for_R,
+        input=input_instance,
+        obj_class=new_class,
+        test=test_df_for_R,
+        discrete_variables=[True] * X.shape[1],
+        verbose=False,
+        no_train=True
+    )
+
+    if df_result is not None:
+        return df_result
+    else:
+        return None
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8050)
