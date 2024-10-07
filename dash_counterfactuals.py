@@ -10,10 +10,10 @@ from ensemble_counterfactuals.common_funcs import train_models
 from ensemble_counterfactuals.algorithms import ga, eda, moeda, nsga2, ebna, moebna
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri, default_converter
+from rpy2.robjects.conversion import localconverter
 
 # Activate the pandas2ri conversion globally
 pandas2ri.activate()
-robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
 
 # Initialize the Dash app
 app = dash.Dash(
@@ -226,6 +226,13 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class):
         return [], [], {}, {'display': 'none'}
 
 def generate_counterfactuals(selected_row, new_class, num_models, df):
+    from rpy2.robjects import pandas2ri, default_converter
+    from rpy2.robjects.conversion import localconverter
+    
+    # Activate pandas2ri conversion and set the conversion in this thread
+    pandas2ri.activate()
+    robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
+    
     if 'class' not in df.columns:
         raise ValueError("The dataframe does not contain a 'class' column.")
 
@@ -246,17 +253,21 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     test_df_for_R['class_label'] = new_class
 
     # Print the type of robjects.conversion for debugging
-    print("Type of robjects.conversion:", type(robjects.conversion))
+    print("dash Before train_models, type of robjects.conversion:", type(robjects.conversion))
 
-    # Convert pandas DataFrames to R DataFrames
-    r_df_train_for_R = robjects.conversion.py2rpy(df_train_for_R)
-    r_test_df_for_R = robjects.conversion.py2rpy(test_df_for_R)
+
+    # Convert pandas DataFrames to R DataFrames using localconverter
+    with localconverter(robjects.default_converter + pandas2ri.converter):
+        r_df_train_for_R = robjects.conversion.py2rpy(df_train_for_R)
+        r_test_df_for_R = robjects.conversion.py2rpy(test_df_for_R)
+
 
     robjects.globalenv['r_df_train_for_R'] = r_df_train_for_R
     robjects.globalenv['r_test_df_for_R'] = r_test_df_for_R
 
     # Train models
     train_models(df_train_for_R, test_df_for_R)
+    print("dash After train_models, type of robjects.conversion:", type(robjects.conversion))
 
     # Generate counterfactuals
     input_instance = test_df.iloc[0].values

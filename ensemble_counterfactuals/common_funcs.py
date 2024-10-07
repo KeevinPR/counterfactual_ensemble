@@ -2,30 +2,39 @@ import numpy as np
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri, default_converter
+from rpy2.robjects.conversion import localconverter
 
 # Activate the pandas to R conversion and set it globally
 pandas2ri.activate()
-robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
+
 
 _trained_models = False
 _name_order = None
 
 def train_models(X, test):
-    print("Type of robjects.r before data conversion in train_models:", type(robjects.r))
+    from rpy2.robjects import pandas2ri, default_converter
+    from rpy2.robjects.conversion import localconverter
+
+    # Activate pandas2ri conversion and set the conversion in this thread
+    pandas2ri.activate()
+    robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
+
+    print("Inside train_models - Before, type of robjects.conversion:", type(robjects.conversion))    # Rename 'class' column to 'class_label' in X and test
     # Rename 'class' column to 'class_label' in X and test
     X = X.rename(columns={'class': 'class_label'})
     test = test.rename(columns={'class': 'class_label'})
 
-    
-    # Convert dataframes
-    r_from_pd_df = robjects.conversion.py2rpy(X)
-    r_test_df = robjects.conversion.py2rpy(test)
+    # Convert dataframes using localconverter
+    with localconverter(robjects.default_converter + pandas2ri.converter):
+        r_from_pd_df = robjects.conversion.py2rpy(X)
+        r_test_df = robjects.conversion.py2rpy(test)
+
 
     robjects.globalenv['r_from_pd_df'] = r_from_pd_df
     robjects.globalenv['r_test_df'] = r_test_df
     # Verify robjects.r
-    print("Type of robjects.r after data conversion in train_models:", type(robjects.r))
-        
+    print("Inside train_models - After, type of robjects.conversion:", type(robjects.conversion))
+            
     # R code to preprocess data and train models
     robjects.r('''
     tryCatch({
@@ -89,12 +98,10 @@ def inicialize_ensemble(X, test):
     X = X.rename(columns={'class': 'class_label'})
     test = test.rename(columns={'class': 'class_label'})
 
-    with robjects.conversion.localconverter(robjects.default_converter):
-        with (robjects.default_converter + pandas2ri.converter).context():
-            r_from_pd_df = robjects.conversion.get_conversion().py2rpy(X)
-
-        with (robjects.default_converter + pandas2ri.converter).context():
-            r_test_df = robjects.conversion.get_conversion().py2rpy(test)
+    # Convert dataframes using localconverter
+    with localconverter(robjects.default_converter + pandas2ri.converter):
+        r_from_pd_df = robjects.conversion.py2rpy(X)
+        r_test_df = robjects.conversion.py2rpy(test)
 
     robjects.globalenv['r_from_pd_df'] = r_from_pd_df
     robjects.globalenv['r_test_df'] = r_test_df
@@ -141,9 +148,10 @@ def ensemble_selector(X, input, test, no_train):
     r_elem = robjects.StrVector(input)
     robjects.globalenv['elem'] = r_elem
 
-    with (robjects.default_converter + pandas2ri.converter).context():
-        r_from_pd_df = robjects.conversion.get_conversion().py2rpy(X)
-        r_test_df = robjects.conversion.get_conversion().py2rpy(test)
+    # Convert dataframes using localconverter
+    with localconverter(robjects.default_converter + pandas2ri.converter):
+        r_from_pd_df = robjects.conversion.py2rpy(X)
+        r_test_df = robjects.conversion.py2rpy(test)
 
     robjects.globalenv['r_from_pd_df'] = r_from_pd_df
     robjects.globalenv['r_test_df'] = r_test_df
