@@ -4,100 +4,87 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri, default_converter
 from rpy2.robjects.conversion import localconverter
 
+
+
 # Activate the pandas to R conversion and set it globally
 pandas2ri.activate()
-
 
 _trained_models = False
 _name_order = None
 
 def train_models(X, test):
-    from rpy2.robjects import pandas2ri, default_converter
-    from rpy2.robjects.conversion import localconverter
+    import os
 
-    # Activate pandas2ri conversion and set the conversion in this thread
     pandas2ri.activate()
     robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
+     
+    # Convert 'class' to categorical if not already
+    X['class'] = X['class'].astype('category')
+    test['class'] = test['class'].astype('category')
 
-    print("Inside train_models - Before, type of robjects.conversion:", type(robjects.conversion))    # Rename 'class' column to 'class_label' in X and test
-    # Rename 'class' column to 'class_label' in X and test
-    X = X.rename(columns={'class': 'class_label'})
-    test = test.rename(columns={'class': 'class_label'})
+    try:
+        # Convert dataframes using localconverter
+        with robjects.conversion.localconverter(robjects.default_converter + pandas2ri.converter):
+            r_from_pd_df = robjects.conversion.py2rpy(X)
+            r_test_df = robjects.conversion.py2rpy(test)
 
-    # Convert dataframes using localconverter
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        r_from_pd_df = robjects.conversion.py2rpy(X)
-        r_test_df = robjects.conversion.py2rpy(test)
-
-
-    robjects.globalenv['r_from_pd_df'] = r_from_pd_df
-    robjects.globalenv['r_test_df'] = r_test_df
-    # Verify robjects.r
-    print("Inside train_models - After, type of robjects.conversion:", type(robjects.conversion))
-            
-    # R code to preprocess data and train models
-    robjects.r('''
-    tryCatch({
+        robjects.globalenv['r_from_pd_df'] = r_from_pd_df
+        robjects.globalenv['r_test_df'] = r_test_df
+        
+        robjects.r('''
         library(bnclassify)
-        columnas_texto <- sapply(r_from_pd_df, is.character)
-        r_from_pd_df[columnas_texto] <- lapply(r_from_pd_df[columnas_texto], as.factor)
-    }, error = function(e) {
-        print(e)
-    })
-    ''')
+        r_from_pd_df[] <- lapply(r_from_pd_df, as.factor)
+        niveles <- lapply(r_from_pd_df, levels)
 
-    robjects.r('''
-    ensemble <- list()
-    nb <- nb('class_label', r_from_pd_df)
-    nb <- lp(nb, r_from_pd_df, smooth = 0.01)
-    saveRDS(nb, "nb.rds")
-    ensemble$nb <- nb
+        r_test_df[] <- Map(function(col, lev) factor(col, levels = lev), r_test_df, niveles)
 
-    tn <- tan_cl('class_label', r_from_pd_df, score = 'aic')
-    tn <- lp(tn, r_from_pd_df, smooth = 0.01)
-    saveRDS(tn, "tan.rds")
-    ensemble$tn <- tn
+        # Train models and assign to ensemble
+        ensemble <- list()
+        nb <- nb('class', r_from_pd_df)
+        nb <- lp(nb, r_from_pd_df, smooth = 0.01)
+        ensemble$nb <- nb
 
-    fssj_model <- fssj('class_label', r_from_pd_df, k=5)
-    fssj_model <- lp(fssj_model, r_from_pd_df, smooth = 0.01)
-    saveRDS(fssj_model, "fssj.rds")
-    ensemble$fssj <- fssj_model
+        tn <- tan_cl('class', r_from_pd_df, score = 'aic')
+        tn <- lp(tn, r_from_pd_df, smooth = 0.01)
+        ensemble$tn <- tn
 
-    kdb_model <- kdb('class_label', r_from_pd_df, k=5)
-    kdb_model <- lp(kdb_model, r_from_pd_df, smooth = 0.01)
-    saveRDS(kdb_model, "kdb.rds")
-    ensemble$kdb <- kdb_model
+        fssj <- fssj('class', r_from_pd_df, k=5)
+        fssj <- lp(fssj, r_from_pd_df, smooth = 0.01)
+        ensemble$fssj <- fssj
 
-    tanhc_model <- tan_hc('class_label', r_from_pd_df, k=5)
-    tanhc_model <- lp(tanhc_model, r_from_pd_df, smooth = 0.01)
-    saveRDS(tanhc_model, "tanhc.rds")
-    ensemble$tanhc <- tanhc_model
-    ''')
+        kdb <- kdb('class', r_from_pd_df, k=5)
+        kdb <- lp(kdb, r_from_pd_df, smooth = 0.01)
+        ensemble$kdb <- kdb
+
+        tanhc <- tan_hc('class', r_from_pd_df, k=5)
+        tanhc <- lp(tanhc, r_from_pd_df, smooth = 0.01)
+        ensemble$tanhc <- tanhc
+
+        # Assign ensemble to global environment
+        assign("ensemble", ensemble, envir = .GlobalEnv)
+        ''')
+        print("R code train_models executed successfully")
+    except Exception as e:
+        print(f"Error in R code: {e}")
+    finally:
+        # Desactiva el conversor global
+        pandas2ri.deactivate()
         
 def model_ensemble():
-    robjects.r('''
-    ensemble <- list()
-    nb <- readRDS("nb.rds")
-    ensemble$nb <- nb
+    pass
 
-    tn <- readRDS("tan.rds")
-    ensemble$tn <- tn
-
-    fssj_model <- readRDS("fssj.rds")
-    ensemble$fssj <- fssj_model
-
-    kdb_model <- readRDS("kdb.rds")
-    ensemble$kdb <- kdb_model
-
-    tanhc_model <- readRDS("tanhc.rds")
-    ensemble$tanhc <- tanhc_model
-    ''')
 
 def inicialize_ensemble(X, test):
-    # Rename 'class' column to 'class_label' in X and test
-    X = X.rename(columns={'class': 'class_label'})
-    test = test.rename(columns={'class': 'class_label'})
-
+    
+    # Convert 'class' to categorical if not already
+    X['class'] = X['class'].astype('category')
+    test['class'] = test['class'].astype('category')
+    
+    # Mantener los mismos niveles para la columna 'class'
+    class_levels = X['class'].cat.categories
+    X['class'] = X['class'].cat.set_categories(class_levels)
+    test['class'] = test['class'].cat.set_categories(class_levels)
+    
     # Convert dataframes using localconverter
     with localconverter(robjects.default_converter + pandas2ri.converter):
         r_from_pd_df = robjects.conversion.py2rpy(X)
@@ -106,91 +93,129 @@ def inicialize_ensemble(X, test):
     robjects.globalenv['r_from_pd_df'] = r_from_pd_df
     robjects.globalenv['r_test_df'] = r_test_df
 
-    robjects.r('''
-    library(bnclassify)
-    columnas_texto <- sapply(r_from_pd_df, is.character)
-    r_from_pd_df[columnas_texto] <- lapply(r_from_pd_df[columnas_texto], as.factor)
-    ''')
+    try:
+        robjects.r('''
+        library(bnclassify)
+        # Convert all columns to factors
+        r_from_pd_df[] <- lapply(r_from_pd_df, factor)
+        niveles <- lapply(r_from_pd_df, levels)
 
-    model_ensemble()
+        # Debug statements
+        print("Names in niveles:")
+        print(names(niveles))
 
-    robjects.r('''
-    niveles <- lapply(r_from_pd_df, levels)
-    n <- niveles[['class_label']]
+        # Ensure r_test_df columns are factors with the same levels
+        r_test_df[] <- Map(function(col, lev) factor(col, levels = lev), r_test_df, niveles)
 
-    for (i in seq_along(r_test_df)) {
-        r_test_df[[i]] <- factor(r_test_df[[i]], levels = niveles[[i]])
-    }
-    ''')
+        # Retrieve class levels
+        n <- niveles[['class']]
+        ''')
+        print("R code initialize_ensemble executed successfully")
+    except Exception as e:
+        print(f"Error in R code within inicialize_ensemble: {e}")
+        traceback = robjects.r('geterrmessage()')
+        print(f"R traceback: {traceback[0]}")
+        return None
+    
+    # Check if 'n' exists in R global environment
+    if 'n' in robjects.globalenv:
+        r_vector = robjects.globalenv['n']
+        name_order = list(r_vector)
+        print("Variable 'n' retrieved from R environment.")
+    else:
+        print("Variable 'n' not found in R environment.")
+        return None
+    
 
-    r_vector = robjects.globalenv['n']
-    name_order = list(r_vector)
     return name_order
+
+
 
 def ensemble_selector(X, input, test, no_train):
     global _trained_models, _name_order
 
-    # Rename 'class' column to 'class_label' in X and test
-    X = X.rename(columns={'class': 'class_label'})
-    test = test.rename(columns={'class': 'class_label'})
-
-    if not no_train:
-        name_order = inicialize_ensemble(X, test)
-        _trained_models = False
-    elif not _trained_models:
+    if not _trained_models:
+        train_models(X, test)
+        _trained_models = True
         name_order = inicialize_ensemble(X, test)
         _name_order = name_order
-        _trained_models = True
     else:
         name_order = _name_order
 
-    # Convert input instance to R vector
-    r_elem = robjects.StrVector(input)
-    robjects.globalenv['elem'] = r_elem
+    # Check if name_order is None (in case of error in inicialize_ensemble)
+    if name_order is None:
+        print("Error initializing ensemble.")
+        return None, None, None
 
-    # Convert dataframes using localconverter
-    with localconverter(robjects.default_converter + pandas2ri.converter):
-        r_from_pd_df = robjects.conversion.py2rpy(X)
-        r_test_df = robjects.conversion.py2rpy(test)
+    # Ensure input is a list of strings (original labels)
+    input_str = [str(val) for val in input]  # Should already be strings
+    r_elem = robjects.StrVector(input_str)
+    robjects.r.assign('elem', r_elem)
 
-    robjects.globalenv['r_from_pd_df'] = r_from_pd_df
-    robjects.globalenv['r_test_df'] = r_test_df
 
-    robjects.r('''
-    library(MLmetrics)
-    niveles <- lapply(r_from_pd_df, levels)
-    df <- as.data.frame(matrix(elem, nrow = 1))
-    colnames(df) <- colnames(r_from_pd_df)
+    # Load ensemble models if not already loaded
+    if not _trained_models:
+        model_ensemble()
+        _trained_models = True
 
-    for (i in seq_along(df)) {
-        df[[i]] <- factor(df[[i]], levels = niveles[[i]])
-    }
+    try:
+        robjects.r('''
+        library(bnclassify)
+        niveles <- lapply(r_from_pd_df, levels)
 
-    outputs_list <- list()
-    for (name in names(ensemble)) {
-        sal <- predict(ensemble[[name]], df, prob = FALSE)
-        if (sal == df[1, ]$class_label) {
-            outputs_list[[name]] <- sal
+        # Prepare input instance as data frame with correct factor levels
+        df <- as.data.frame(matrix(elem, nrow = 1))
+        colnames(df) <- colnames(r_from_pd_df)
+        df[] <- Map(function(col, lev) factor(col, levels = lev), df, niveles)
+
+        # Check for NAs in df after setting factor levels
+        if (any(is.na(df))) {
+            print("NAs found in df after setting factor levels:")
+            print(df)
+            print("Levels in training data:")
+            print(niveles)
+            stop("Input instance contains values not present in training data levels.")
         }
-    }
 
-    accu_list <- list()
-    for (name in names(outputs_list)) {
-        p <- predict(ensemble[[name]], r_test_df, prob = FALSE)
-        accu_sal <- Accuracy(p, r_test_df$class_label)
-        accu_list[[name]] <- accu_sal
-    }
+        # Proceed with predictions
+        outputs_list <- list()
+        for (name in names(ensemble)) {
+            sal <- predict(ensemble[[name]], df, prob = FALSE)
+            if (sal == df[1, ]$class) {
+                outputs_list[[name]] <- sal
+            }
+        }
 
-    remaining_models_var <- names(outputs_list)
-    if (is.null(remaining_models_var)) {
-        remaining_models_var <- 0
-    }
-    accuracy_values <- unlist(accu_list)
-    ''')
+        accu_list <- list()
+        for (name in names(outputs_list)) {
+            p <- predict(ensemble[[name]], r_test_df, prob = FALSE)
+            accu_sal <- bnclassify::accuracy(p, r_test_df$class)
+            accu_list[[name]] <- accu_sal
+        }
 
-    r_remaining_models_var = robjects.globalenv['remaining_models_var']
-    r_accuracy_values = robjects.globalenv['accuracy_values']
-    remaining_models = list(r_remaining_models_var)
-    accuracy = np.array(r_accuracy_values)
+        remaining_models_var <- names(outputs_list)
+        if (length(remaining_models_var) == 0) {
+            remaining_models_var <- 0
+        }
+        accuracy_values <- unlist(accu_list)
+        ''')
+        print("R code ensemble_selector executed successfully")
+    except Exception as e:
+        print(f"Error in R code: {e}")
+        # Retrieve detailed error message from R
+        traceback = robjects.r('geterrmessage()')
+        print(f"R traceback: {traceback[0]}")
+        return None, None, None
+
+    # Extract remaining models and accuracy from R
+    if 'remaining_models_var' in robjects.globalenv and 'accuracy_values' in robjects.globalenv:
+        r_remaining_models_var = robjects.globalenv['remaining_models_var']
+        r_accuracy_values = robjects.globalenv['accuracy_values']
+        remaining_models = list(r_remaining_models_var)
+        accuracy = np.array(r_accuracy_values)
+    else:
+        print("Variables 'remaining_models_var' or 'accuracy_values' not found in R environment.")
+        return None, None, None
 
     return name_order, remaining_models, accuracy
+
