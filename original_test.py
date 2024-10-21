@@ -8,6 +8,7 @@ import random
 from statistics import mean 
 from ensemble_counterfactuals.common_funcs import train_models
 from ensemble_counterfactuals.algorithms import ga, eda, moeda, nsga2, ebna, moebna
+from IPython.display import display
 
 # %%
 # Importing a dataset from uci machine learning repository as an example
