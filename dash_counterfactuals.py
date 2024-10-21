@@ -146,12 +146,18 @@ def update_predictor_table(contents, filename):
         df = parse_contents(contents, filename)
         if df is None:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}
-        columns = [{'headerName': col, 'field': col, 'width': 200} for col in df.columns]
+        
+        # Reset index to create 'Row Number' column
+        df = df.reset_index(drop=False)
+        df.rename(columns={'index': 'Row Number'}, inplace=True)
+        
+        columns = [{'headerName': col, 'field': col, 'width': 120} for col in df.columns]
         data = df.to_dict('records')
         total_width = sum([col['width'] for col in columns])
         return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}
     else:
         return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}
+
 
 # Callback to display selected row and update class options
 @app.callback(
@@ -169,9 +175,9 @@ def update_predictor_table(contents, filename):
 def display_selected_row_and_class(selectedRows, data):
     if selectedRows:
         selected_row = selectedRows[0]
-        # Exclude internal keys
+        # Exclude internal keys (starting with '_')
         row_data = [{k: v for k, v in selected_row.items() if not k.startswith('_')}]
-        columns = [{'headerName': col, 'field': col, 'width': 200} for col in row_data[0].keys()]
+        columns = [{'headerName': col, 'field': col, 'width': 120} for col in row_data[0].keys()]
         total_width = sum([col['width'] for col in columns])
 
         # Extract class options for dropdown
@@ -191,6 +197,7 @@ def display_selected_row_and_class(selectedRows, data):
     return [], [], {}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
 
 
+
 # Callback para ejecutar la generación de contrafactuales con mejoras
 @app.callback(
     [Output('results-table', 'rowData'),
@@ -208,46 +215,44 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
         return [], [], {}, {'display': 'none'}
 
     try:
-        # Parsear los datos cargados
-        filename = 'temp_data.csv'  # Nombre temporal para el archivo cargado
+        # Parse the uploaded data
+        filename = 'temp_data.csv'  # Temporary filename
         df = parse_contents(contents, filename)
 
-        # Revisar si los datos se cargaron correctamente
+        # Check if data loaded correctly
         if df is None or df.empty:
-            print("Error: Los datos no se cargaron correctamente.")
+            print("Error: The data was not loaded correctly.")
             return [], [], {}, {'display': 'none'}
 
-        # Procesar la fila seleccionada
+        # Process the selected row
         selected_row = selectedRows[0]
-        selected_row_clean = {k: v for k, v in selected_row.items() if not k.startswith('_')}
+        # Exclude internal keys and 'Row Number'
+        selected_row_clean = {k: v for k, v in selected_row.items() if not k.startswith('_') and k != 'Row Number'}
 
-        # Verificar niveles en los datos cargados
+        # Validate input levels
         if not validate_input_levels(df, selected_row_clean):
-            print("Error: Los niveles en la instancia seleccionada no coinciden con los niveles en los datos cargados.")
+            print("Error: Levels in the selected instance do not match levels in the loaded data.")
             return [], [], {}, {'display': 'none'}
 
-        # Generar contrafactuales
+        # Generate counterfactuals
         df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
         print(f"df_counterfactual:\n{df_counterfactual}")
 
-        # Verificar si se generaron contrafactuales
+        # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
-            # Convertir el DataFrame de pandas a un R DataFrame y actualizar el entorno de R
-            r_from_pd_df = robjects.conversion.py2rpy(df_counterfactual)
-            robjects.globalenv['r_from_pd_df'] = r_from_pd_df
-
-            # Generar la tabla de resultados para mostrar en Dash
+            # Prepare the results table
             data = df_counterfactual.to_dict('records')
-            columns = [{'headerName': col, 'field': col, 'width': 200} for col in df_counterfactual.columns]
+            columns = [{'headerName': col, 'field': col, 'width': 120} for col in df_counterfactual.columns]
             total_width = sum([col['width'] for col in columns])
             return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}
         else:
             print("No counterfactuals to display")
             return [], [], {}, {'display': 'none'}
     except Exception as e:
-        # Registrar el error
+        # Log the error
         print(f"Error generating counterfactuals: {e}")
         return [], [], {}, {'display': 'none'}
+
 
 
 def validate_input_levels(df, selected_row):
