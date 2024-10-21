@@ -14,12 +14,10 @@ from statistics import mean
 from ensemble_counterfactuals.codification import Codificacion
 from ensemble_counterfactuals.common_funcs import ensemble_selector
 
-
-
 def ensemble_counter_eda(X,input,obj_class,test,discrete_variables=None,verbose=True,no_train=False):
-    input = [str(elemento) for elemento in input]
-    X = X.astype(str)
-    test = test.astype(str)
+    #input = [str(elemento) for elemento in input]
+    #X = X.astype(str)
+    #test = test.astype(str)
     name_order, remaing_models, accuracy = ensemble_selector(X,input,test,no_train)
     if remaing_models[0] == 0:
         return None, None, None, None
@@ -44,9 +42,9 @@ def ensemble_counter_eda(X,input,obj_class,test,discrete_variables=None,verbose=
             continue
         plausible_rows.append(a)
 
-    for i,model_name in enumerate(remaing_models):
+    for i, model_name in enumerate(remaing_models):
         start_time = time.time()
-        sol,score = _eda_ensemble(input,obj_class,cod,X,model_name,one_sol=False,discrete_variables=discrete_variables)
+        sol, score = _eda_ensemble(input, obj_class, cod, X, model_name, one_sol=False, discrete_variables=discrete_variables)
         if verbose:
             print(model_name)
             print(accuracy[i])
@@ -56,7 +54,10 @@ def ensemble_counter_eda(X,input,obj_class,test,discrete_variables=None,verbose=
         df = pd.DataFrame(sol)
         df = df.drop(df.columns[-1], axis=1)
         models_list.append(model_name)
-        r_elem = robjects.StrVector(cod.decode(sol))
+        # Corrected line:
+        r_elem = robjects.StrVector([str(el) for el in cod.decode(sol)])
+
+
         robjects.globalenv['elem'] = r_elem
         robjects.r('''
         niveles <- lapply(r_from_pd_df, levels)
@@ -156,6 +157,8 @@ _y_desired_cod = None
 
 
 def _categorical_cost_function(solution):
+    # Ensure solution is integer
+    solution = solution.astype(int)
     global _discrete_variable, _x_instance_cod, _max, _min, _codification, _model_name, _y_desired_cod
     r_name = robjects.StrVector([_model_name])
     robjects.globalenv['model_name'] = r_name
@@ -181,15 +184,29 @@ def _categorical_cost_function(solution):
 
     r_vector = robjects.globalenv['re']
     re = list(r_vector)
-    if (re[0]-1)!=_y_desired_cod:
-        dist+=100
+    predicted_class = re[0]
+    print(f"Predicted class: {predicted_class}")
+    try:
+        re_encoded = _codification.encode_class(predicted_class)
+    except ValueError:
+        print(f"Error: Predicted class '{predicted_class}' not found in class list.")
+        dist += 1000  # Penalize heavily
+        return dist
+
+    print(f"Encoded predicted class: {re_encoded}")
+    print(f"Desired class code: {_y_desired_cod}")
+
+    if re_encoded != _y_desired_cod:
+        dist += 100
     return dist
 
 
-def _eda_ensemble(x_instance,y_desired,codification,X,model_name,pop_size=20,n_gen=20,period=10,one_sol=True,discrete_variables=None,graphic=False):
+def _eda_ensemble(x_instance, y_desired, codification, X, model_name, pop_size=20, n_gen=20, period=10, one_sol=True, discrete_variables=None, graphic=False):
     global _discrete_variable, _x_instance_cod, _max, _min, _codification, _model_name, _y_desired_cod
-    min_values = codification.get_min()
-    max_values = codification.get_max()
+    
+    # Convert min and max values to integers
+    min_values = np.array(codification.get_min(), dtype=int)
+    max_values = np.array(codification.get_max(), dtype=int)
 
     _discrete_variable = discrete_variables
     _x_instance_cod = codification.encode(x_instance)
@@ -200,24 +217,41 @@ def _eda_ensemble(x_instance,y_desired,codification,X,model_name,pop_size=20,n_g
     _y_desired_cod = codification.encode_class(y_desired)
 
     pos_values = []
-    for i,e in enumerate(min_values):
-        pos_values.append(list(range(e,max_values[i]+1)))
+    for i, e in enumerate(min_values):
+        pos_values.append(list(range(e, max_values[i] + 1)))
 
     freqs = []
     for elem in pos_values:
-        freqs.append([1/len(elem)]*len(elem))
+        freqs.append([1 / len(elem)] * len(elem))
 
-    ebna = UMDAcat(size_gen=pop_size, max_iter=n_gen, dead_iter=period, n_variables=len(min_values), alpha=0.8,
-        possible_values=pos_values, frequency=freqs)
+    # Initialize UMDAcat without w_noise
+    ebna = UMDAcat(
+        size_gen=pop_size,
+        max_iter=n_gen,
+        dead_iter=period,
+        n_variables=len(min_values),
+        alpha=0.8,
+        possible_values=pos_values,
+        frequency=freqs
+    )
 
+    # Set w_noise to zero to disable white noise addition
+    ebna.w_noise = 0
+
+    # Do not attempt to access ebna.generation before minimize()
+
+    # Proceed with minimization
     ebna_result = ebna.minimize(_categorical_cost_function, False)
+
+    # Rest of your code...
     if graphic:
         algs = ebna_result.history
-        time = list(range(0,len(algs)))
+        time = list(range(0, len(algs)))
 
         plt.figure(figsize=(8, 6))
-        plt.scatter(time,algs,facecolors='none', edgecolors='b')
+        plt.scatter(time, algs, facecolors='none', edgecolors='b')
         plt.xlabel('Generation')
         plt.ylabel('Best Distance')
         plt.title(f'{model_name}')
-    return ebna_result.best_ind,ebna_result.best_cost
+    return ebna_result.best_ind, ebna_result.best_cost
+
