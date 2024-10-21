@@ -11,3 +11,9 @@ ensemble_counterfactuals/algorithms/__pycache__/nsga2.cpython-38.pyc
 __pycache__/counterfactuals_logic.cpython-38.pyc
 execution example.ipynb
 execution example.ipynb
+fssj.rds
+kdb.rds
+nb.rds
+tan.rds
+tanhc.rds
+ensemble_counterfactuals/algorithms/__pycache__/umdanonoise.cpython-38.pyc
