@@ -117,20 +117,19 @@ def parse_contents(contents, filename):
     global uploaded_df
     try:
         if any(ext in filename.lower() for ext in ['csv', 'data']):
-            # Assuming the .data file is comma-separated and may not have headers
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header=None)
-            # Provide column names if needed
-            df.columns = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'class']
+            # Asumir que la primera fila tiene los nombres de las columnas
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif 'xls' in filename.lower() or 'xlsx' in filename.lower():
             df = pd.read_excel(io.BytesIO(decoded))
         else:
             return None
         df = df.reset_index(drop=True)
-        uploaded_df = df.copy()  # Store the DataFrame globally
+        uploaded_df = df.copy()
         return df
     except Exception as e:
         print(f"Error parsing file: {e}")
         return None
+
 
 
 # Callback to update the predictor table
@@ -192,7 +191,7 @@ def display_selected_row_and_class(selectedRows, data):
     return [], [], {}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
 
 
-# Callback para ejecutar la generación de contrafactuales
+# Callback para ejecutar la generación de contrafactuales con mejoras
 @app.callback(
     [Output('results-table', 'rowData'),
      Output('results-table', 'columnDefs'),
@@ -201,24 +200,43 @@ def display_selected_row_and_class(selectedRows, data):
     Input('run-button', 'n_clicks'),
     State('predictor-table', 'selectedRows'),
     State('model-selector', 'value'),
-    State('class-selector', 'value')
+    State('class-selector', 'value'),
+    State('upload-data', 'contents')
 )
-def run_counterfactual(n_clicks, selectedRows, num_models, new_class):
-    if n_clicks is None or not selectedRows or new_class is None:
+def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
+    if n_clicks is None or not selectedRows or new_class is None or contents is None:
         return [], [], {}, {'display': 'none'}
 
     try:
+        # Parsear los datos cargados
+        filename = 'temp_data.csv'  # Nombre temporal para el archivo cargado
+        df = parse_contents(contents, filename)
+
+        # Revisar si los datos se cargaron correctamente
+        if df is None or df.empty:
+            print("Error: Los datos no se cargaron correctamente.")
+            return [], [], {}, {'display': 'none'}
+
+        # Procesar la fila seleccionada
         selected_row = selectedRows[0]
         selected_row_clean = {k: v for k, v in selected_row.items() if not k.startswith('_')}
 
-        # Generate counterfactuals
-        df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, uploaded_df)
-        print(f"df_counterfactual:\n{df_counterfactual}")
-        if df_counterfactual is not None and not df_counterfactual.empty:
-            # Convert the pandas DataFrame to R DataFrame
-            r_from_pd_df = robjects.conversion.py2rpy(df_counterfactual)
-            robjects.globalenv['r_from_pd_df'] = r_from_pd_df  # Assign to global environment in R
+        # Verificar niveles en los datos cargados
+        if not validate_input_levels(df, selected_row_clean):
+            print("Error: Los niveles en la instancia seleccionada no coinciden con los niveles en los datos cargados.")
+            return [], [], {}, {'display': 'none'}
 
+        # Generar contrafactuales
+        df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
+        print(f"df_counterfactual:\n{df_counterfactual}")
+
+        # Verificar si se generaron contrafactuales
+        if df_counterfactual is not None and not df_counterfactual.empty:
+            # Convertir el DataFrame de pandas a un R DataFrame y actualizar el entorno de R
+            r_from_pd_df = robjects.conversion.py2rpy(df_counterfactual)
+            robjects.globalenv['r_from_pd_df'] = r_from_pd_df
+
+            # Generar la tabla de resultados para mostrar en Dash
             data = df_counterfactual.to_dict('records')
             columns = [{'headerName': col, 'field': col, 'width': 200} for col in df_counterfactual.columns]
             total_width = sum([col['width'] for col in columns])
@@ -227,10 +245,20 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class):
             print("No counterfactuals to display")
             return [], [], {}, {'display': 'none'}
     except Exception as e:
-        # Log the error
+        # Registrar el error
         print(f"Error generating counterfactuals: {e}")
-        # Optionally, display an error message in the interface
         return [], [], {}, {'display': 'none'}
+
+
+def validate_input_levels(df, selected_row):
+    """
+    Función para validar si los niveles en la instancia seleccionada coinciden con los niveles en el DataFrame cargado.
+    """
+    for col in selected_row:
+        if col in df.columns and selected_row[col] not in df[col].unique():
+            print(f"Valor '{selected_row[col]}' en columna '{col}' no coincide con los niveles de los datos cargados.")
+            return False
+    return True
 
 def preprocess_data(df):
     # Handle missing values
@@ -246,6 +274,7 @@ def preprocess_data(df):
     return df, categorical_columns
 
 
+
 def determine_discrete_variables(df):
     discrete_vars = [True] * (df.shape[1] - 1)  # Exclude 'class' column
     return discrete_vars
@@ -256,7 +285,7 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     import numpy as np
     from sklearn.model_selection import train_test_split
 
-    # Preprocess data
+    # Preprocess data to ensure all columns are treated as categories
     df, categorical_columns = preprocess_data(df)
 
     # Perform train-test split
@@ -268,42 +297,22 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     # Ensure consistent data types and factor levels
     for col in df.columns:
         selected_row_df[col] = selected_row_df[col].astype('category')
-        selected_row_df[col].cat.set_categories(df[col].cat.categories)
+        selected_row_df[col] = selected_row_df[col].cat.set_categories(df[col].cat.categories)
 
-    # Ensure consistent levels for categorical variables
+    # Ensure consistent levels for categorical variables in train_df and test_df
     for col in categorical_columns:
         categories = df[col].cat.categories  # Get categories from the full dataset
         train_df[col] = train_df[col].cat.set_categories(categories)
         test_df[col] = test_df[col].cat.set_categories(categories)
-        selected_row_df[col] = selected_row_df[col].astype('category')
         selected_row_df[col] = selected_row_df[col].cat.set_categories(categories)
 
-        
-    # Combine X_train and y_train
-    df_train = train_df.reset_index(drop=True)
-    test_df = test_df.reset_index(drop=True)
-
-    # Check for mismatched levels in the input instance
-    for col in selected_row_df.columns:
-        input_value = selected_row_df[col].iloc[0]
-        if input_value not in df_train[col].cat.categories:
-            print(f"Value '{input_value}' in column '{col}' is not in training data levels: {df_train[col].cat.categories.tolist()}")
-            return None
-
-    # Print levels in training data
-    print("Levels in training data:")
-    for col in df_train.columns:
-        levels = df_train[col].cat.categories.tolist()
-        print(f"Levels for '{col}': {levels}")
-
-    # Print values in input instance
-    print("Values in input instance:")
-    for col in selected_row_df.columns:
-        value = selected_row_df[col].iloc[0]
-        print(f"'{col}': '{value}'")
+    # Convert data to strings for compatibility with R code
+    train_df = train_df.astype(str)
+    test_df = test_df.astype(str)
+    selected_row_df = selected_row_df.astype(str)
 
     # Determine discrete variables
-    discrete_variables = [True] * (df_train.shape[1] - 1)  # Exclude 'class'
+    discrete_variables = [True] * (df.shape[1] - 1)  # Exclude 'class'
 
     # Map new_class to its original label
     obj_class_label = new_class
@@ -316,24 +325,12 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     print(f"Discrete variables: {discrete_variables}")
 
     try:
-        # Comprobación de niveles en los DataFrames antes de pasarlos a R
-        print("Niveles en train_df:")
-        print(train_df['class'].cat.categories)
-        print("Niveles en test_df:")
-        print(test_df['class'].cat.categories)
-
-        # Verificar las primeras filas de cada DataFrame
-        print("Primeras filas de train_df:")
-        print(train_df.head())
-        print("Primeras filas de test_df:")
-        print(test_df.head())
-
-        # Adjust the call to ensemble_counter_eda
+        # Llamada a ensemble_counter_eda con datos de tipo string
         df_result, _, accuracy, time_taken = eda.ensemble_counter_eda(
-            X=df_train,
+            X=train_df,
             input=selected_row_df.iloc[0].values,
             obj_class=new_class,
-            test=df_train,
+            test=test_df,
             discrete_variables=discrete_variables,
             verbose=True,
             no_train=True
@@ -345,12 +342,10 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
 
     if df_result is not None and not df_result.empty:
         print("Counterfactuals generated successfully")
-        print(df_result)
         return df_result
     else:
         print("No counterfactuals were generated")
         return None
-
 
 
 def parse_contents(contents, filename):
