@@ -89,9 +89,16 @@ app.layout = html.Div([
             )
         ], style={'width': '200px', 'margin': '0 auto'}),
         html.Br(),
-        html.Div([
-            html.Button('Run', id='run-button')
-        ], style={'textAlign': 'center'})
+        dcc.Loading(
+            id='loading-run-button',
+            type='circle',  # Spinner type
+            children=[
+                html.Div([
+                    html.Button('Run', id='run-button', n_clicks=0)
+                ], style={'textAlign': 'center'}),
+                dcc.Store(id='run-button-store')  # Hidden store to trigger loading
+            ]
+        )
     ], id='model-container', style={'display': 'none'}),
 
     html.Br(),
@@ -199,11 +206,14 @@ def display_selected_row_and_class(selectedRows, data):
 
 
 # Callback para ejecutar la generación de contrafactuales con mejoras
+# Add 'run-button.disabled' and 'run-button-store.data' to the Outputs
 @app.callback(
     [Output('results-table', 'rowData'),
      Output('results-table', 'columnDefs'),
      Output('results-table', 'style'),
-     Output('results-container', 'style')],
+     Output('results-container', 'style'),
+     Output('run-button', 'disabled'),
+     Output('run-button-store', 'data')],
     Input('run-button', 'n_clicks'),
     State('predictor-table', 'selectedRows'),
     State('model-selector', 'value'),
@@ -211,47 +221,57 @@ def display_selected_row_and_class(selectedRows, data):
     State('upload-data', 'contents')
 )
 def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
-    if n_clicks is None or not selectedRows or new_class is None or contents is None:
-        return [], [], {}, {'display': 'none'}
-
+    if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or contents is None:
+        return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+    
+    # Disable the "Run" button during processing
+    disabled = True
+    
     try:
         # Parse the uploaded data
         filename = 'temp_data.csv'  # Temporary filename
         df = parse_contents(contents, filename)
-
+    
         # Check if data loaded correctly
         if df is None or df.empty:
             print("Error: The data was not loaded correctly.")
-            return [], [], {}, {'display': 'none'}
-
+            return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+    
         # Process the selected row
         selected_row = selectedRows[0]
         # Exclude internal keys and 'Row Number'
         selected_row_clean = {k: v for k, v in selected_row.items() if not k.startswith('_') and k != 'Row Number'}
-
+    
         # Validate input levels
         if not validate_input_levels(df, selected_row_clean):
             print("Error: Levels in the selected instance do not match levels in the loaded data.")
-            return [], [], {}, {'display': 'none'}
-
+            return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+    
         # Generate counterfactuals
         df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
         print(f"df_counterfactual:\n{df_counterfactual}")
-
+    
         # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
             # Prepare the results table
             data = df_counterfactual.to_dict('records')
             columns = [{'headerName': col, 'field': col, 'width': 120} for col in df_counterfactual.columns]
             total_width = sum([col['width'] for col in columns])
-            return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}
+            # Re-enable the "Run" button and update the store
+            disabled = False
+            return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}, disabled, 'done'
         else:
             print("No counterfactuals to display")
-            return [], [], {}, {'display': 'none'}
+            # Re-enable the "Run" button and update the store
+            disabled = False
+            return [], [], {}, {'display': 'none'}, disabled, 'done'
     except Exception as e:
         # Log the error
         print(f"Error generating counterfactuals: {e}")
-        return [], [], {}, {'display': 'none'}
+        # Re-enable the "Run" button and update the store
+        disabled = False
+        return [], [], {}, {'display': 'none'}, disabled, 'done'
+
 
 
 
