@@ -83,8 +83,8 @@ app.layout = html.Div([
     html.Div([
         html.H3("Models", style={'textAlign': 'center'}),
         html.Div([
-            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '16px'}),
-            html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'})
+            html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'}),
+            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '16px'})
         ], style={'width': '200px', 'margin': '0 auto'}),
         html.Br(),
         dcc.Loading(
@@ -253,7 +253,7 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
         if df_counterfactual is not None and not df_counterfactual.empty:
             # Prepare the results table
             data = df_counterfactual.to_dict('records')
-            columns = [{'headerName': col, 'field': col, 'width': 100} for col in df_counterfactual.columns]
+            columns = [{'headerName': col, 'field': col, 'width': 100,} for col in df_counterfactual.columns]
             total_width = sum([col['width'] for col in columns])
             # Re-enable the "Run" button and update the store
             disabled = False
