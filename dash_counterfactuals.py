@@ -84,7 +84,7 @@ app.layout = html.Div([
         html.H3("Models", style={'textAlign': 'center'}),
         html.Div([
             html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'}),
-            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '16px'})
+            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '12px'})
         ], style={'width': '200px', 'margin': '0 auto'}),
         html.Br(),
         dcc.Loading(
