@@ -79,27 +79,26 @@ app.layout = html.Div([
     html.Br(),
 
     # Number of Models and Run Button
+    # Number of Models and Run Button
     html.Div([
-        html.H3("Number of Models", style={'textAlign': 'center'}),
+        html.H3("Models", style={'textAlign': 'center'}),
         html.Div([
-            dcc.Dropdown(
-                id='model-selector',
-                options=[{'label': str(i), 'value': i} for i in range(1, 6)],
-                value=5
-            )
+            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '16px'}),
+            html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'})
         ], style={'width': '200px', 'margin': '0 auto'}),
         html.Br(),
         dcc.Loading(
             id='loading-run-button',
-            type='circle',  # Spinner type
+            type='circle',
             children=[
                 html.Div([
                     html.Button('Run', id='run-button', n_clicks=0)
                 ], style={'textAlign': 'center'}),
-                dcc.Store(id='run-button-store')  # Hidden store to trigger loading
+                dcc.Store(id='run-button-store')
             ]
         )
     ], id='model-container', style={'display': 'none'}),
+
 
     html.Br(),
 
@@ -114,9 +113,29 @@ app.layout = html.Div([
                 defaultColDef={'resizable': True}
             )
         ], style={'display': 'flex', 'justifyContent': 'center'})
-    ], id='results-container', style={'display': 'none'})
+    ], id='results-container', style={'display': 'none'}),
+    #Div for automatic srolling down
+    html.Div(id='scroll-helper', style={'display': 'none'})
 ])
-
+#Automix scrolling down
+app.clientside_callback(
+    """
+    function(selectedRowStyle, resultsStyle) {
+        // Verificar si el contenedor de 'Selected Row' está visible
+        if (selectedRowStyle && selectedRowStyle.display === 'block') {
+            document.getElementById('selected-row-container').scrollIntoView({behavior: 'smooth'});
+        }
+        // Verificar si el contenedor de 'Results' está visible
+        else if (resultsStyle && resultsStyle.display === 'block') {
+            document.getElementById('results-container').scrollIntoView({behavior: 'smooth'});
+        }
+        return '';
+    }
+    """,
+    Output('scroll-helper', 'children'),
+    [Input('selected-row-container', 'style'),
+     Input('results-container', 'style')]
+)
 
 # Callback to update the predictor table
 @app.callback(
@@ -195,11 +214,11 @@ def display_selected_row_and_class(selectedRows, data):
      Output('run-button-store', 'data')],
     Input('run-button', 'n_clicks'),
     State('predictor-table', 'selectedRows'),
-    State('model-selector', 'value'),
     State('class-selector', 'value'),
     State('upload-data', 'contents')
 )
-def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
+def run_counterfactual(n_clicks, selectedRows, new_class, contents):
+    num_models = 5
     if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or contents is None:
         return [], [], {}, {'display': 'none'}, False, None  # Button enabled
     
