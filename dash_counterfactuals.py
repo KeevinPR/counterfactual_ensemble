@@ -117,27 +117,6 @@ app.layout = html.Div([
     ], id='results-container', style={'display': 'none'})
 ])
 
-# Function to parse uploaded CSV or Data file
-def parse_contents(contents, filename):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    global uploaded_df
-    try:
-        if any(ext in filename.lower() for ext in ['csv', 'data']):
-            # Asumir que la primera fila tiene los nombres de las columnas
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename.lower() or 'xlsx' in filename.lower():
-            df = pd.read_excel(io.BytesIO(decoded))
-        else:
-            return None
-        df = df.reset_index(drop=True)
-        uploaded_df = df.copy()
-        return df
-    except Exception as e:
-        print(f"Error parsing file: {e}")
-        return None
-
-
 
 # Callback to update the predictor table
 @app.callback(
@@ -255,7 +234,7 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
         if df_counterfactual is not None and not df_counterfactual.empty:
             # Prepare the results table
             data = df_counterfactual.to_dict('records')
-            columns = [{'headerName': col, 'field': col, 'width': 120} for col in df_counterfactual.columns]
+            columns = [{'headerName': col, 'field': col, 'width': 100} for col in df_counterfactual.columns]
             total_width = sum([col['width'] for col in columns])
             # Re-enable the "Run" button and update the store
             disabled = False
@@ -379,8 +358,9 @@ def parse_contents(contents, filename):
     global uploaded_df
     try:
         if any(ext in filename.lower() for ext in ['csv', 'data']):
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header=None, dtype=str)
-            df.columns = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'class']
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), dtype=str)
+            #df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header=None, dtype=str)
+            #df.columns = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'class']
         elif 'xls' in filename.lower() or 'xlsx' in filename.lower():
             df = pd.read_excel(io.BytesIO(decoded), dtype=str)
         else:
@@ -388,6 +368,11 @@ def parse_contents(contents, filename):
         df = df.reset_index(drop=True)
         uploaded_df = df.copy()
         return df
+    #except pd.errors.ParserError:
+        # Si falla, intentar leer sin encabezados
+        #df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header=None, dtype=str)
+        # Asignar nombres genéricos a las columnas
+        #df.columns = [f'col_{i}' for i in range(df.shape[1])]
     except Exception as e:
         print(f"Error parsing file: {e}")
         return None
