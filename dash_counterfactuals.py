@@ -228,7 +228,7 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
     
         # Generate counterfactuals
         df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
-        print(f"df_counterfactual:\n{df_counterfactual}")
+        #print(f"df_counterfactual:\n{df_counterfactual}")
     
         # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
@@ -240,7 +240,7 @@ def run_counterfactual(n_clicks, selectedRows, num_models, new_class, contents):
             disabled = False
             return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}, disabled, 'done'
         else:
-            print("No counterfactuals to display")
+            #print("No counterfactuals to display")
             # Re-enable the "Run" button and update the store
             disabled = False
             return [], [], {}, {'display': 'none'}, disabled, 'done'
@@ -260,7 +260,7 @@ def validate_input_levels(df, selected_row):
     """
     for col in selected_row:
         if col in df.columns and selected_row[col] not in df[col].unique():
-            print(f"Valor '{selected_row[col]}' en columna '{col}' no coincide con los niveles de los datos cargados.")
+            #print(f"Valor '{selected_row[col]}' en columna '{col}' no coincide con los niveles de los datos cargados.")
             return False
     return True
 
@@ -322,11 +322,11 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     obj_class_label = new_class
 
     # Before ensemble_counter_eda call
-    print("Starting ensemble_counter_eda")
-    print(f"Input instance: {selected_row_df.iloc[0].values}")
-    print(f"Objective class: {obj_class_label}")
-    print(f"Number of models: {num_models}")
-    print(f"Discrete variables: {discrete_variables}")
+    #print("Starting ensemble_counter_eda")
+    #print(f"Input instance: {selected_row_df.iloc[0].values}")
+    #print(f"Objective class: {obj_class_label}")
+    #print(f"Number of models: {num_models}")
+    #print(f"Discrete variables: {discrete_variables}")
 
     try:
         # Llamada a ensemble_counter_eda con datos de tipo string
@@ -339,16 +339,16 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
             verbose=True,
             no_train=True
         )
-        print("ensemble_counter_eda completed")
+        #print("ensemble_counter_eda completed")
     except Exception as e:
         print(f"Error in ensemble_counter_eda: {e}")
         return None
 
     if df_result is not None and not df_result.empty:
-        print("Counterfactuals generated successfully")
+        #print("Counterfactuals generated successfully")
         return df_result
     else:
-        print("No counterfactuals were generated")
+        #print("No counterfactuals were generated")
         return None
 
 

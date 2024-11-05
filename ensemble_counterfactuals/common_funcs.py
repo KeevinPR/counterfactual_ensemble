@@ -110,7 +110,7 @@ def inicialize_ensemble(X, test):
         try:
             # Si no existen los archivos .rds, entrenar los modelos
             if not all(os.path.isfile(file) for file in ["nb.rds", "tan.rds", "fssj.rds", "kdb.rds", "tanhc.rds"]):
-                print("Entrenando modelos...")
+                #print("Entrenando modelos...")
                 train_models(X, test)
                 
             r_from_pd_df = robjects.conversion.py2rpy(X)
@@ -142,7 +142,7 @@ def inicialize_ensemble(X, test):
         except Exception as e:
             print(f"Error in R code within inicialize_ensemble: {e}")
             traceback = robjects.r('geterrmessage()')
-            print(f"R traceback: {traceback[0]}")
+            #print(f"R traceback: {traceback[0]}")
             return None
 
 def ensemble_selector(X,input,test,no_train):
@@ -194,9 +194,9 @@ def ensemble_selector(X,input,test,no_train):
             r_remaining_models = robjects.globalenv['remaining_models']
             r_accuracy = robjects.globalenv['acurracy']
             remaing_models = list(r_remaining_models)
-            print(remaing_models)
+            #print(remaing_models)
             accuracy = np.array(r_accuracy)
-            print("R code ensemble_selector executed successfully")
+            #print("R code ensemble_selector executed successfully")
         except Exception as e:
             print(f"Error in R code: {e}")
     return name_order, remaing_models, accuracy
