@@ -26,8 +26,14 @@ app = dash.Dash(
 uploaded_df = pd.DataFrame()
 
 # Layout of the application
-app.layout = html.Div([
+app.layout = dcc.Loading(
+    id="global-spinner",
+    overlay_style={"visibility":"visible", "filter": "blur(1px)"},
+    type="circle",        # You can choose "circle", "dot", "default", etc.
+    fullscreen=False,      # This ensures it covers the entire page
+    children=html.Div([
     # Upload Dataset Section
+    html.H1("Counterfactuals", style={'textAlign': 'center'}),
     html.H3("Upload Dataset", style={'textAlign': 'center'}),
     html.Div([
         dcc.Upload(
@@ -117,6 +123,7 @@ app.layout = html.Div([
     #Div for automatic srolling down
     html.Div(id='scroll-helper', style={'display': 'none'})
 ])
+)
 #Automix scrolling down
 app.clientside_callback(
     """
