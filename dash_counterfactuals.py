@@ -21,6 +21,7 @@ app = dash.Dash(
     requests_pathname_prefix='/Reasoning/CounterfactualsDash/',
     suppress_callback_exceptions=True
 )
+server = app.server
 
 # Global variable to store the uploaded DataFrame
 uploaded_df = pd.DataFrame()
