@@ -233,7 +233,7 @@ app.layout = html.Div([
                         [
                             "For details and content of the dataset, check out: ",
                             html.A(
-                                "cars_example.data",
+                                "carwithnames.data",
                                 href="https://github.com/KeevinPR/counterfactual_ensemble/blob/main/carwithnames.data",
                                 target="_blank",
                                 style={"textDecoration": "underline", "color": "#0d6efd"}
