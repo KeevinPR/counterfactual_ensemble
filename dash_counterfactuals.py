@@ -1,5 +1,6 @@
 import dash
 from dash import dcc, html, Input, Output, State
+import dash_bootstrap_components as dbc
 import pandas as pd
 import base64
 import io
@@ -18,6 +19,7 @@ pandas2ri.activate()
 # Initialize the Dash app
 app = dash.Dash(
     __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
     requests_pathname_prefix='/Reasoning/CounterfactualsDash/',
     suppress_callback_exceptions=True
 )
