@@ -133,7 +133,7 @@ hr {
 
 
   /* Container (card) for the upload section */
-  .upload-card {
+.upload-card {
     width: 25%; /* Adjust according to how small you want it (25% width) */
     margin: 20px auto;
     padding: 10px;
@@ -209,6 +209,19 @@ h1 {
     padding: 10px 0px 20px 0px;
     margin: 20px auto;
     max-width: 700px; /* adjust as needed */
+  }
+  .card-big {
+    background-color: rgb(220, 241, 247, 0.1) !important;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    padding: 10px 0px 20px 0px;
+    margin: 20px auto;
+    max-width: 1000px; /* adjust as needed */
+  }
+  /* Subtle hover effect on the card */
+  .card-big:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   }
   
   /* Subtle hover effect on the card */
