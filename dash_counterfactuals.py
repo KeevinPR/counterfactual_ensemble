@@ -27,104 +27,106 @@ server = app.server
 uploaded_df = pd.DataFrame()
 
 # Layout of the application
-app.layout = dcc.Loading(
-    id="global-spinner",
-    overlay_style={"visibility":"visible", "filter": "blur(1px)"},
-    type="circle",        # You can choose "circle", "dot", "default", etc.
-    fullscreen=False,      # This ensures it covers the entire page
-    children=html.Div([
-    # Upload Dataset Section
-    html.H1("Counterfactuals", style={'textAlign': 'center'}),
-    html.H3("Upload Dataset", style={'textAlign': 'center'}),
-    html.Div([
-        dcc.Upload(
-            id='upload-data',
-            children=html.Button('Upload File', id='upload-button'),
-            multiple=False  # Only allow one file
-        )
-    ], style={'textAlign': 'center'}),
-
-    html.Br(),
-
-    # Table of predictor variables
-    html.Div([
-        html.H3("Predictor Variables", style={'textAlign': 'center'}),
-        html.Div([
-            AgGrid(
-                id='predictor-table',
-                columnDefs=[],  # Column Definitions will be filled after file upload
-                rowData=[],     # Data will be filled after file upload
-                defaultColDef={'editable': False, 'resizable': True, 'sortable': True},
-                dashGridOptions={'rowSelection': 'single'},  # Enable single row selection
-                style={'height': '300px'}  # We'll dynamically set the width later
-            )
-        ], style={'display': 'flex', 'justifyContent': 'center'})
-    ], id='predictor-container', style={'display': 'none'}),
-
-    html.Br(),
-
-    # Selected Row and Class Modification Section
-    html.Div([
-        html.H3("Selected Row", style={'textAlign': 'center'}),
-        html.Div([
-            AgGrid(
-                id='selected-row-table',
-                columnDefs=[],
-                rowData=[],
-                defaultColDef={'editable': False, 'resizable': True}
-            )
-        ], style={'display': 'flex', 'justifyContent': 'center'})
-    ], id='selected-row-container', style={'display': 'none'}),
-
-    html.Div([
-        html.H3("Select Class", style={'textAlign': 'center'}),
-        html.Div([
-            dcc.Dropdown(id='class-selector')
-        ], style={'width': '200px', 'margin': '0 auto'})
-    ], id='class-container', style={'display': 'none'}),
-
-    html.Br(),
-
-    # Number of Models and Run Button
-    # Number of Models and Run Button
-    html.Div([
-        html.H3("Models", style={'textAlign': 'center'}),
-        html.Div([
-            html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'}),
-            html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '12px'})
-        ], style={'width': '200px', 'margin': '0 auto'}),
-        html.Br(),
+app.layout = html.Div([
         dcc.Loading(
-            id='loading-run-button',
-            type='circle',
-            children=[
+            id="global-spinner",
+            overlay_style={"visibility":"visible", "filter": "blur(1px)"},
+            type="circle",        # You can choose "circle", "dot", "default", etc.
+            fullscreen=False,      # This ensures it covers the entire page
+            children=html.Div([
+            # Upload Dataset Section
+            html.H1("Counterfactuals", style={'textAlign': 'center'}),
+            html.H3("Upload Dataset", style={'textAlign': 'center'}),
+            html.Div([
+                dcc.Upload(
+                    id='upload-data',
+                    children=html.Button('Upload File', id='upload-button'),
+                    multiple=False  # Only allow one file
+                )
+            ], style={'textAlign': 'center'}),
+
+            html.Br(),
+
+            # Table of predictor variables
+            html.Div([
+                html.H3("Predictor Variables", style={'textAlign': 'center'}),
                 html.Div([
-                    html.Button('Run', id='run-button', n_clicks=0)
-                ], style={'textAlign': 'center'}),
-                dcc.Store(id='run-button-store')
-            ]
+                    AgGrid(
+                        id='predictor-table',
+                        columnDefs=[],  # Column Definitions will be filled after file upload
+                        rowData=[],     # Data will be filled after file upload
+                        defaultColDef={'editable': False, 'resizable': True, 'sortable': True},
+                        dashGridOptions={'rowSelection': 'single'},  # Enable single row selection
+                        style={'height': '300px'}  # We'll dynamically set the width later
+                    )
+                ], style={'display': 'flex', 'justifyContent': 'center'})
+            ], id='predictor-container', style={'display': 'none'}),
+
+            html.Br(),
+
+            # Selected Row and Class Modification Section
+            html.Div([
+                html.H3("Selected Row", style={'textAlign': 'center'}),
+                html.Div([
+                    AgGrid(
+                        id='selected-row-table',
+                        columnDefs=[],
+                        rowData=[],
+                        defaultColDef={'editable': False, 'resizable': True}
+                    )
+                ], style={'display': 'flex', 'justifyContent': 'center'})
+            ], id='selected-row-container', style={'display': 'none'}),
+
+            html.Div([
+                html.H3("Select Class", style={'textAlign': 'center'}),
+                html.Div([
+                    dcc.Dropdown(id='class-selector')
+                ], style={'width': '200px', 'margin': '0 auto'})
+            ], id='class-container', style={'display': 'none'}),
+
+            html.Br(),
+
+            # Number of Models and Run Button
+            # Number of Models and Run Button
+            html.Div([
+                html.H3("Models", style={'textAlign': 'center'}),
+                html.Div([
+                    html.P("nb, tn, fssj, kdb, tanhc, baseline", style={'textAlign': 'center', 'fontSize': '18px'}),
+                    html.P("5 models will be used", style={'textAlign': 'center', 'fontSize': '12px'})
+                ], style={'width': '200px', 'margin': '0 auto'}),
+                html.Br(),
+                dcc.Loading(
+                    id='loading-run-button',
+                    type='circle',
+                    children=[
+                        html.Div([
+                            html.Button('Run', id='run-button', n_clicks=0)
+                        ], style={'textAlign': 'center'}),
+                        dcc.Store(id='run-button-store')
+                    ]
+                )
+            ], id='model-container', style={'display': 'none'}),
+
+
+            html.Br(),
+
+            # Results Table
+            html.Div([
+                html.H3("Results", style={'textAlign': 'center'}),
+                html.Div([
+                    AgGrid(
+                        id='results-table',
+                        columnDefs=[],
+                        rowData=[],
+                        defaultColDef={'resizable': True}
+                    )
+                ], style={'display': 'flex', 'justifyContent': 'center'})
+            ], id='results-container', style={'display': 'none'}),
+            #Div for automatic srolling down
+            html.Div(id='scroll-helper', style={'display': 'none'})
+            ])
         )
-    ], id='model-container', style={'display': 'none'}),
-
-
-    html.Br(),
-
-    # Results Table
-    html.Div([
-        html.H3("Results", style={'textAlign': 'center'}),
-        html.Div([
-            AgGrid(
-                id='results-table',
-                columnDefs=[],
-                rowData=[],
-                defaultColDef={'resizable': True}
-            )
-        ], style={'display': 'flex', 'justifyContent': 'center'})
-    ], id='results-container', style={'display': 'none'}),
-    #Div for automatic srolling down
-    html.Div(id='scroll-helper', style={'display': 'none'})
-])
-)
+    ])
 #Automix scrolling down
 app.clientside_callback(
     """
