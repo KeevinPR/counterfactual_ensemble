@@ -105,37 +105,37 @@ app.layout = html.Div([
             ########################################################
             # (A) Data upload
             ########################################################
-            html.H3("Upload Dataset", style={'textAlign': 'center'}),
+            html.Div(className="card", children=[
+                html.H3("1. Upload Dataset", style={'textAlign': 'center'}),
 
-            html.Div([
-                dcc.Upload(
-                    id='upload-data',
-                    children=html.Button('Upload File', id='upload-button'),
-                    multiple=False  # Only allow one file
-                )
-            ], style={'textAlign': 'center'}),
+                html.Div([
+                    dcc.Upload(
+                        id='upload-data',
+                        children=html.Button('Upload File', id='upload-button'),
+                        multiple=False  # Only allow one file
+                    )
+                ], style={'textAlign': 'center'}),
 
-            # Use default dataset + help icon
-            html.Div([
-                dcc.Checklist(
-                    id='use-default-dataset',
-                    options=[{'label': 'Use the default dataset', 'value': 'default'}],
-                    value=[],
-                    style={'display': 'inline-block', 'textAlign': 'center', 'marginTop': '10px'}
-                ),
-                dbc.Button(
-                    html.I(className="fa fa-question-circle"),
-                    id="help-button-default-dataset",
-                    color="link",
-                    style={"display": "inline-block", "marginLeft": "8px"}
-                ),
-            ], style={'textAlign': 'center'}),
-
-            html.Br(),
+                # Use default dataset + help icon
+                html.Div([
+                    dcc.Checklist(
+                        id='use-default-dataset',
+                        options=[{'label': 'Use the default dataset', 'value': 'default'}],
+                        value=[],
+                        style={'display': 'inline-block', 'textAlign': 'center', 'marginTop': '10px'}
+                    ),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-default-dataset",
+                        color="link",
+                        style={"display": "inline-block", "marginLeft": "8px"}
+                    ),
+                ], style={'textAlign': 'center'}),
+            ]),
 
             # Table of predictor variables
-            html.Div([
-                html.H3("Predictor Variables", style={'textAlign': 'center'}),
+            html.Div(className="card-big", children=[
+                html.H3("2. Predictor Variables", style={'textAlign': 'center'}),
                 html.Div([
                     AgGrid(
                         id='predictor-table',
@@ -151,53 +151,41 @@ app.layout = html.Div([
             html.Br(),
 
             # Selected Row and Class Modification Section
-            html.Div([
-                html.H3("Selected Row", style={'textAlign': 'center'}),
+            html.Div(className="card-big", children=[
                 html.Div([
-                    AgGrid(
-                        id='selected-row-table',
-                        columnDefs=[],
-                        rowData=[],
-                        defaultColDef={'editable': False, 'resizable': True}
-                    )
-                ], style={'display': 'flex', 'justifyContent': 'center'})
-            ], id='selected-row-container', style={'display': 'none'}),
-
-            html.Div([
-                html.H3("Select Class", style={'textAlign': 'center'}),
+                    html.H3("3. Selected Row", style={'textAlign': 'center'}),
+                    html.Div([
+                        AgGrid(
+                            id='selected-row-table',
+                            columnDefs=[],
+                            rowData=[],
+                            defaultColDef={'editable': False, 'resizable': True}
+                        )
+                    ], style={'display': 'flex', 'justifyContent': 'center'})
+                ], id='selected-row-container', style={'display': 'none'})
+            ]),
+            
+            html.Div(className="card", children=[
+                html.H3("4. Select Class", style={'textAlign': 'center'}),
                 html.Div([
                     dcc.Dropdown(id='class-selector')
-                ], style={'width': '200px', 'margin': '0 auto'})
+                ], style={'width': '200px', 'margin': '0 auto', 'position': 'relative', 'zIndex': '9999'})
             ], id='class-container', style={'display': 'none'}),
-
-            html.Br(),
-
+             
             # Number of Models and Run Button
             html.Div([
-                html.H3("Models", style={'textAlign': 'center'}),
                 html.Div([
-                    html.P("nb, tn, fssj, kdb, tanhc, baseline",
-                           style={'textAlign': 'center', 'fontSize': '18px'}),
-                    html.P("5 models will be used",
-                           style={'textAlign': 'center', 'fontSize': '12px'})
-                ], style={'width': '200px', 'margin': '0 auto'}),
-                html.Br(),
-                dcc.Loading(
-                    id='loading-run-button',
-                    type='circle',
-                    children=[
-                        html.Div([
-                            html.Button('Run', id='run-button', n_clicks=0)
-                        ], style={'textAlign': 'center'}),
-                        dcc.Store(id='run-button-store')
-                    ]
-                )
+                        html.Button('Run', id='run-button', n_clicks=0)
+                    ], style={'textAlign': 'center'}),
+                    dcc.Store(id='run-button-store'),
+                html.P("Models that will be use:", 
+                           style={'textAlign': 'center', 'fontSize': '12px'}),
+                html.P("nb, tn, fssj, kdb, tanhc, baseline",
+                           style={'textAlign': 'center', 'fontSize': '10px'}),
             ], id='model-container', style={'display': 'none'}),
 
-            html.Br(),
-
             # Results Table
-            html.Div([
+            html.Div(className="card-big", children=[
                 html.H3("Results", style={'textAlign': 'center'}),
                 html.Div([
                     AgGrid(
