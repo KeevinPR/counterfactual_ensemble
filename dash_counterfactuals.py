@@ -106,15 +106,27 @@ app.layout = html.Div([
             # (A) Data upload
             ########################################################
             html.Div(className="card", children=[
-                html.H3("1. Upload Dataset", style={'textAlign': 'center'}),
+                html.H3("1. Upload Dataset" ,style={'textAlign': 'center'}),
 
-                html.Div([
-                    dcc.Upload(
-                        id='upload-data',
-                        children=html.Button('Upload File', id='upload-button'),
-                        multiple=False  # Only allow one file
-                    )
-                ], style={'textAlign': 'center'}),
+                # Container "card"
+                    html.Div([
+                        # Top part with icon and text
+                        html.Div([
+                            html.Img(
+                                src="https://img.icons8.com/ios-glyphs/40/cloud--v1.png",  
+                                className="upload-icon"
+                            ),
+                            html.Div("Drag and drop or select a CSV file", className="upload-text")
+                        ]),
+                        
+                        # Upload component
+                        dcc.Upload(
+                            id='upload-data',
+                            children=html.Div([], style={'display': 'none'}),
+                            className="upload-dropzone",
+                            multiple=False
+                        ),
+                    ], className="upload-card"),
 
                 # Use default dataset + help icon
                 html.Div([
