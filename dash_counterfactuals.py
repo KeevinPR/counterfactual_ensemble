@@ -103,7 +103,9 @@ app.layout = html.Div([
                 style={"marginBottom": "20px"}
             ),
             
-            
+            ########################################################
+            # (A) Data upload
+            ########################################################            
             
             html.H3("Upload Dataset", style={'textAlign': 'center'}),
             html.Div([
@@ -113,6 +115,8 @@ app.layout = html.Div([
                     multiple=False  # Only allow one file
                 )
             ], style={'textAlign': 'center'}),
+
+
 
             html.Br(),
 
@@ -194,7 +198,51 @@ app.layout = html.Div([
             #Div for automatic srolling down
             html.Div(id='scroll-helper', style={'display': 'none'})
             ])
-        )
+        ),#end of loading
+        #  popover **outside** the dcc.Loading
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Help",
+                    # Optional icon next to the text
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",  # Light gray background
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P(
+                        [
+                            "For details and content of the dataset, check out: ",
+                            html.A(
+                                "cars_example.data",
+                                href="https://github.com/KeevinPR/counterfactual_ensemble/blob/main/carwithnames.data",
+                                target="_blank",
+                                style={"textDecoration": "underline", "color": "#0d6efd"}
+                            ),
+                        ]
+                    ),
+                    html.Hr(),  # Horizontal rule for a modern divider
+                    html.P("Feel free to upload your own dataset at any time.")
+                ],
+                style={
+                    "backgroundColor": "#ffffff",  # White background
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-default-dataset",
+        target="help-button-default-dataset",
+        placement="right",  # could be 'left', 'bottom', etc.
+        is_open=False,
+        trigger="hover"  
+    )
+    #future popovers here
+        
     ])
 #Automix scrolling down
 app.clientside_callback(
