@@ -204,6 +204,7 @@ h1 {
   /* Generic card container */
 .card {
     background-color: rgb(220, 241, 247, 0.1) !important;
+    border-color: rgba(0, 162, 225,0.3);
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.06);
     padding: 10px 0px 20px 0px;
@@ -212,6 +213,7 @@ h1 {
   }
   .card-big {
     background-color: rgb(220, 241, 247, 0.1) !important;
+    border-color: rgba(0, 162, 225,0.3);
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.06);
     padding: 10px 0px 20px 0px;
