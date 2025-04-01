@@ -210,6 +210,7 @@ h1 {
     padding: 10px 0px 20px 0px;
     margin: 20px auto;
     max-width: 700px; /* adjust as needed */
+    transition: all 0.1s ease;
   }
   .card-big {
     background-color: rgb(220, 241, 247, 0.1) !important;
@@ -219,16 +220,17 @@ h1 {
     padding: 10px 0px 20px 0px;
     margin: 20px auto;
     max-width: 1000px; /* adjust as needed */
-}
-  /* Subtle hover effect on the card */
-  .card-big:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: all 0.1s ease;
   }
+    /* Subtle hover effect on the card */
+    .card-big:hover {
+      margin-top: -2px; /* Simula "subir" 1-2px */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
   
   /* Subtle hover effect on the card */
   .card:hover {
-    transform: translateY(-1px);
+    margin-top: -2px; /* Simula "subir" 1-2px */
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   }
   
