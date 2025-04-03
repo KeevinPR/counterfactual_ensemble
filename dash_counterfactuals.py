@@ -259,6 +259,8 @@ dcc.Store(id='cleaned-data-store'),
 
 ])
 
+TARGET_COL = "class"  # "target class"
+robjects.globalenv['target_col'] = TARGET_COL
 # Automix scrolling down
 app.clientside_callback(
     """
@@ -351,9 +353,10 @@ def display_selected_row_and_class(selectedRows, data):
         total_width = sum([col['width'] for col in columns])
 
         # Extract class options for dropdown
-        if 'class' in selected_row :
-            class_options = [{'label': cls, 'value': cls} for cls in sorted({row['class'] for row in data})]
-            class_value = selected_row['class']
+        if TARGET_COL in selected_row:
+            class_options = [{'label': val, 'value': val}
+                            for val in sorted({row[TARGET_COL] for row in data})]
+            class_value = selected_row[TARGET_COL]
             return (
                 row_data,
                 columns,
@@ -448,16 +451,12 @@ def preprocess_data(df):
         df[col] = df[col].astype('category')
     return df, df.columns.tolist()
 
-def determine_discrete_variables(df):
-    # Example function if needed
-    discrete_vars = [True] * (df.shape[1] - 1)  # Exclude 'class' column
-    return discrete_vars
+
 
 def generate_counterfactuals(selected_row, new_class, num_models, df):
     import pandas as pd
     import numpy as np
     from sklearn.model_selection import train_test_split
-
     # 1) Preprocess data => all category
     df = df.dropna()  # already called? fine
     for c in df.columns:
@@ -487,9 +486,13 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     train_df_str = train_df.astype(str)
     test_df_str  = test_df.astype(str)
     selected_row_str = selected_row_df.astype(str)
-
-    # 5) Discrete variables: e.g. one less than total, ignoring 'class'
-    discrete_variables = [True] * (df.shape[1] - 1)
+    
+    # 5) Discrete variables: set True for all columns,
+    #    but set the target column to False because it is not a predictor.
+    discrete_variables = [True] * df.shape[1]
+    # Find the position (integer index) of the target column in df
+    target_index = df.columns.get_loc(TARGET_COL)
+    discrete_variables[target_index] = False
 
     # 6) Call your EDA-based method
     try:
@@ -539,13 +542,6 @@ def parse_contents(contents, filename):
         else:
             print("Unsupported extension.")
             return None
-
-        # If 'Class' or 'CLASS' in columns, rename it to 'class'
-        possible_class = [c for c in df.columns if c.lower() == 'class']
-        if possible_class:
-            actual_name = possible_class[0]
-            if actual_name != 'class':
-                df.rename(columns={actual_name: 'class'}, inplace=True)
 
         # Reset index
         df.reset_index(drop=True, inplace=True)
