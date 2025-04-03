@@ -259,7 +259,7 @@ dcc.Store(id='cleaned-data-store'),
 
 ])
 
-TARGET_COL = "class"  # "target class"
+TARGET_COL = "Class"  # "target class"
 robjects.globalenv['target_col'] = TARGET_COL
 # Automix scrolling down
 app.clientside_callback(
@@ -545,10 +545,16 @@ def parse_contents(contents, filename):
 
         # Reset index
         df.reset_index(drop=True, inplace=True)
+        
+        # === Reorder so that TARGET_COL (e.g. "Class") is the last column ===
+        if TARGET_COL in df.columns:
+            # Move "Class" from wherever it is, to the end
+            cols = [col for col in df.columns if col != TARGET_COL] + [TARGET_COL]
+            df = df[cols]
+            
         return df
     except Exception as e:
         print(f"Error in parse_and_clean: {e}")
         return None
-
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8050)
+    app.run(debug=False, host='0.0.0.0', port=8050)
