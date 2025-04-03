@@ -45,27 +45,27 @@ def train_models(X, test):
             
             # Crear y guardar los modelos
             ensemble <- list()
-            nb <- nb('class', r_from_pd_df)
+            nb <- nb(target_col, r_from_pd_df)
             nb <- lp(nb, r_from_pd_df, smooth = 0.01)
             saveRDS(nb, "nb.rds")
             ensemble$nb <- nb
                     
-            tn <- tan_cl('class', r_from_pd_df, score = 'aic')
+            tn <- tan_cl(target_col, r_from_pd_df, score = 'aic')
             tn <- lp(tn, r_from_pd_df, smooth = 0.01)
             saveRDS(tn, "tan.rds")
             ensemble$tn <- tn 
                     
-            fssj <- fssj('class', r_from_pd_df, k=5)
+            fssj <- fssj(target_col, r_from_pd_df, k=5)
             fssj <- lp(fssj, r_from_pd_df, smooth = 0.01)
             saveRDS(fssj, "fssj.rds")
             ensemble$fssj <- fssj
                     
-            kdb <- kdb('class', r_from_pd_df, k=5)
+            kdb <- kdb(target_col, r_from_pd_df, k=5)
             kdb <- lp(kdb, r_from_pd_df, smooth = 0.01)
             saveRDS(kdb, "kdb.rds")
             ensemble$kdb <- kdb
                     
-            tanhc <- tan_hc('class', r_from_pd_df, k=5)
+            tanhc <- tan_hc(target_col, r_from_pd_df, k=5)
             tanhc <- lp(tanhc, r_from_pd_df, smooth = 0.01)
             saveRDS(tanhc, "tanhc.rds")
             ensemble$tanhc <- tanhc       
@@ -129,7 +129,7 @@ def inicialize_ensemble(X, test):
             
             robjects.r('''
             niveles <- lapply(r_from_pd_df, levels)
-            n = niveles$class
+            n = niveles[[target_col]]
                     
             for (i in seq_along(r_test_df)) {
             r_test_df[[i]] <- factor(r_test_df[[i]], levels = niveles[[i]])
@@ -173,7 +173,7 @@ def ensemble_selector(X,input,test,no_train):
             for (name in names(ensemble)){
                 sal = predict(ensemble[[name]], df, prob = FALSE)
                 cat("Modelo:", name, "Sol:", as.character(sal), "\n")
-                if(sal==df[1,]$class){
+                if(sal==df[1,][[target_col]]){
                     outputs[[name]] = sal            
                 }
             }
@@ -182,7 +182,7 @@ def ensemble_selector(X,input,test,no_train):
             accu <- list()
             for (name in names(outputs)){
                 p = predict(ensemble[[name]], r_test_df, prob = FALSE)
-                accu_sal <- accuracy(p,r_test_df$class)
+                accu_sal <- accuracy(p,r_test_df[[target_col]])
                 accu[[name]] = accu_sal
                 cat("Modelo:", name, "Sol:", accu_sal, "\n")
             }        
