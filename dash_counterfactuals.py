@@ -351,7 +351,7 @@ def display_selected_row_and_class(selectedRows, data):
         total_width = sum([col['width'] for col in columns])
 
         # Extract class options for dropdown
-        if 'class' in selected_row:
+        if 'class' in selected_row :
             class_options = [{'label': cls, 'value': cls} for cls in sorted({row['class'] for row in data})]
             class_value = selected_row['class']
             return (
@@ -458,42 +458,46 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     import numpy as np
     from sklearn.model_selection import train_test_split
 
-    # Preprocess data to ensure all columns are treated as categories
-    df, categorical_columns = preprocess_data(df)
+    # 1) Preprocess data => all category
+    df = df.dropna()  # already called? fine
+    for c in df.columns:
+        df[c] = df[c].astype('category')
 
-    # Perform train-test split
+    # 2) Train/test split
     train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
 
-    # Convert selected_row to DataFrame
+    # 3) Convert selected row to a DataFrame
     selected_row_df = pd.DataFrame([selected_row])
 
-    # Ensure consistent data types and factor levels
+    #    (A) If the selected_row is missing any columns from df, add them as None
+    #        This ensures selected_row_df has all columns that df has.
     for col in df.columns:
+        if col not in selected_row_df.columns:
+            selected_row_df[col] = None
         selected_row_df[col] = selected_row_df[col].astype('category')
         selected_row_df[col] = selected_row_df[col].cat.set_categories(df[col].cat.categories)
 
-    # Ensure consistent levels for categorical variables in train_df and test_df
-    for col in categorical_columns:
-        categories = df[col].cat.categories
-        train_df[col] = train_df[col].cat.set_categories(categories)
-        test_df[col] = test_df[col].cat.set_categories(categories)
-        selected_row_df[col] = selected_row_df[col].cat.set_categories(categories)
+    #    (B) Now unify columns exactly:
+    #        Force train_df/test_df to the exact same column order as df
+    train_df = train_df[df.columns]
+    test_df  = test_df[df.columns]
+    selected_row_df = selected_row_df[df.columns]
 
-    # Convert data to strings for compatibility with R code
-    train_df = train_df.astype(str)
-    test_df = test_df.astype(str)
-    selected_row_df = selected_row_df.astype(str)
+    # 4) Convert all to string for R code
+    train_df_str = train_df.astype(str)
+    test_df_str  = test_df.astype(str)
+    selected_row_str = selected_row_df.astype(str)
 
-    # Determine discrete variables
-    discrete_variables = [True] * (df.shape[1] - 1)  # Exclude 'class'
+    # 5) Discrete variables: e.g. one less than total, ignoring 'class'
+    discrete_variables = [True] * (df.shape[1] - 1)
 
-    # Call the EDA-based method
+    # 6) Call your EDA-based method
     try:
         df_result, _, accuracy, time_taken = eda.ensemble_counter_eda(
-            X=train_df,
-            input=selected_row_df.iloc[0].values,
+            X=train_df_str,
+            input=selected_row_str.iloc[0].values,
             obj_class=new_class,
-            test=test_df,
+            test=test_df_str,
             discrete_variables=discrete_variables,
             verbose=True,
             no_train=True
@@ -512,16 +516,13 @@ import re
 import numpy as np
 import pandas as pd
 
-def parse_contents(contents, filename, missing_threshold=0.3):
+def parse_contents(contents, filename):
     """
-    1) Decode base64
-    2) Read CSV or Excel
-    3) Remove columns with > (missing_threshold * 100)% missing
-    4) Drop rows with missing in the remaining columns
-    5) Drop constant columns
-    6) Rename columns (non-alphanumeric -> underscore)
-    7) If we find 'Class' in any case variant, rename to 'class'
-    8) Return the cleaned DataFrame (or None on error)
+    Minimal parsing:
+     1) Decode base64
+     2) Read CSV or Excel
+     3) If we find 'Class' in any case variant, rename it to 'class'
+     4) Return the raw DataFrame (or None on error)
     """
     if not contents:
         return None
@@ -539,27 +540,7 @@ def parse_contents(contents, filename, missing_threshold=0.3):
             print("Unsupported extension.")
             return None
 
-        # (A) Remove columns with > (missing_threshold * 100)% missing
-        # e.g. 0.3 -> if more than 30% missing, drop that column
-        thresh = int((1 - missing_threshold) * len(df))
-        df.dropna(axis=1, thresh=thresh, inplace=True)
-
-        # (B) Drop rows with any missing left
-        df.dropna(axis=0, how='any', inplace=True)
-
-        # (C) Drop constant columns
-        nuniques = df.nunique()
-        const_cols = nuniques[nuniques == 1].index
-        df.drop(columns=const_cols, inplace=True)
-
-        # (D) Rename columns: non-alphanumeric => underscore
-        clean_cols = []
-        for col in df.columns:
-            new_c = re.sub(r'[^a-zA-Z0-9]+', '_', str(col)).strip('_')
-            clean_cols.append(new_c if new_c else "Unnamed")
-        df.columns = clean_cols
-
-        # (E) If 'Class' or 'CLASS' in columns, rename it to 'class'
+        # If 'Class' or 'CLASS' in columns, rename it to 'class'
         possible_class = [c for c in df.columns if c.lower() == 'class']
         if possible_class:
             actual_name = possible_class[0]
