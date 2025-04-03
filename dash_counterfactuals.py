@@ -259,7 +259,7 @@ dcc.Store(id='cleaned-data-store'),
 
 ])
 
-TARGET_COL = "Class"  # "target class"
+TARGET_COL = "class"  # "target class"
 robjects.globalenv['target_col'] = TARGET_COL
 # Automix scrolling down
 app.clientside_callback(
