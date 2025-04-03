@@ -16,12 +16,8 @@ def rpy2_context():
     robjects.conversion.set_conversion(default_converter + pandas2ri.converter)
     
     with localconverter(default_converter + pandas2ri.converter):
-        #try:
-            yield
-        #finally:
-            # Desactivar pandas2ri después del uso
-            #pandas2ri.deactivate()
-            
+        yield
+
 # Variables globales para el control del modelo       
 _trained_models = False
 _name_order = None
@@ -148,7 +144,6 @@ def inicialize_ensemble(X, test):
 
             # Si no existen los archivos .rds, entrenar los modelos
             if not all(os.path.isfile(file) for file in ["nb.rds", "tan.rds", "fssj.rds", "kdb.rds", "tanhc.rds"]):
-                #print("Entrenando modelos...")
                 train_models(X, test)
                 
             r_from_pd_df = robjects.conversion.py2rpy(X)
@@ -199,7 +194,7 @@ def ensemble_selector(X, input, test, no_train):
             print("   - X.shape:", X.shape, "| X.columns:", X.columns.tolist())
             print("   - test.shape:", test.shape, "| test.columns:", test.columns.tolist())
             print("   - input:", input, "| no_train:", no_train)
-
+            
             if not no_train:
                 name_order = inicialize_ensemble(X, test)
                 _trained_models = False
@@ -209,8 +204,6 @@ def ensemble_selector(X, input, test, no_train):
                 _trained_models = True
             else:
                 name_order = _name_order
-
-            # model_ensemble()
 
             r_elem = robjects.StrVector(input)
             robjects.globalenv['elem'] = r_elem
@@ -232,6 +225,14 @@ def ensemble_selector(X, input, test, no_train):
             }
 
             cat("\\n[DEBUG R] colnames(df):", colnames(df), "\\n")
+
+            # NEW LINES: Print factor levels in df vs. r_from_pd_df
+            cat("\\n[DEBUG R] factor levels in r_from_pd_df vs df:\\n")
+            for(nm in colnames(df)) {
+              cat("   -", nm, "\\n")
+              cat("       r_from_pd_df levels ->", levels(r_from_pd_df[[nm]]), "\\n")
+              cat("       df levels           ->", levels(df[[nm]]), "\\n\\n")
+            }
 
             outputs <- list()
             for (name in names(ensemble)){
