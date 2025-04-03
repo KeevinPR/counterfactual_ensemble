@@ -254,7 +254,9 @@ app.layout = html.Div([
         placement="right",
         is_open=False,
         trigger="hover"
-    )
+    ),
+dcc.Store(id='cleaned-data-store'),
+
 ])
 
 # Automix scrolling down
@@ -505,22 +507,70 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
     else:
         return None
 
-def parse_contents(contents, filename):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    global uploaded_df
+# Function to parse and clean the uploaded dataset
+import re
+import numpy as np
+import pandas as pd
+
+def parse_contents(contents, filename, missing_threshold=0.3):
+    """
+    1) Decode base64
+    2) Read CSV or Excel
+    3) Remove columns with > (missing_threshold * 100)% missing
+    4) Drop rows with missing in the remaining columns
+    5) Drop constant columns
+    6) Rename columns (non-alphanumeric -> underscore)
+    7) If we find 'Class' in any case variant, rename to 'class'
+    8) Return the cleaned DataFrame (or None on error)
+    """
+    if not contents:
+        return None
     try:
-        if any(ext in filename.lower() for ext in ['csv', 'data']):
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), dtype=str)
-        elif 'xls' in filename.lower() or 'xlsx' in filename.lower():
-            df = pd.read_excel(io.BytesIO(decoded), dtype=str)
+        # Decode base64
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        # Read file
+        if any(ext in filename.lower() for ext in ['.csv', '.data', '.txt']):
+            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
+        elif any(ext in filename.lower() for ext in ['.xls', '.xlsx']):
+            df = pd.read_excel(io.BytesIO(decoded), na_values='?')
         else:
+            print("Unsupported extension.")
             return None
-        df = df.reset_index(drop=True)
-        uploaded_df = df.copy()
+
+        # (A) Remove columns with > (missing_threshold * 100)% missing
+        # e.g. 0.3 -> if more than 30% missing, drop that column
+        thresh = int((1 - missing_threshold) * len(df))
+        df.dropna(axis=1, thresh=thresh, inplace=True)
+
+        # (B) Drop rows with any missing left
+        df.dropna(axis=0, how='any', inplace=True)
+
+        # (C) Drop constant columns
+        nuniques = df.nunique()
+        const_cols = nuniques[nuniques == 1].index
+        df.drop(columns=const_cols, inplace=True)
+
+        # (D) Rename columns: non-alphanumeric => underscore
+        clean_cols = []
+        for col in df.columns:
+            new_c = re.sub(r'[^a-zA-Z0-9]+', '_', str(col)).strip('_')
+            clean_cols.append(new_c if new_c else "Unnamed")
+        df.columns = clean_cols
+
+        # (E) If 'Class' or 'CLASS' in columns, rename it to 'class'
+        possible_class = [c for c in df.columns if c.lower() == 'class']
+        if possible_class:
+            actual_name = possible_class[0]
+            if actual_name != 'class':
+                df.rename(columns={actual_name: 'class'}, inplace=True)
+
+        # Reset index
+        df.reset_index(drop=True, inplace=True)
         return df
     except Exception as e:
-        print(f"Error parsing file: {e}")
+        print(f"Error in parse_and_clean: {e}")
         return None
 
 if __name__ == '__main__':
