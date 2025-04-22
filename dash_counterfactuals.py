@@ -260,6 +260,8 @@ dcc.Store(id='cleaned-data-store'),
 ])
 
 TARGET_COL = "class"  # "target class"
+MODEL_FILES   = ["nb.rds", "tan.rds", "fssj.rds", "kdb.rds", "tanhc.rds"]
+FEATURES_FILE = "model_features.txt"          # save the column names of the model
 robjects.globalenv['target_col'] = TARGET_COL
 # Automix scrolling down
 app.clientside_callback(
