@@ -18,3 +18,4 @@ tan.rds
 tanhc.rds
 ensemble_counterfactuals/algorithms/__pycache__/umdanonoise.cpython-38.pyc
 __pycache__/
+ensemble_counterfactuals/artifacts/model_features.txt
