@@ -106,7 +106,17 @@ app.layout = html.Div([
             # (A) Data upload
             ########################################################
             html.Div(className="card", children=[
-                html.H3("1. Upload Dataset" ,style={'textAlign': 'center'}),
+                # Title or subtitle for this section
+                html.Div([
+                    html.H3("1. Upload Dataset", style={"display": "inline-block", "marginRight": "10px", "textAlign": "center"}),
+                    # Add help button right after the title
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-dataset-requirements",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
 
                 # Container "card"
                     html.Div([
@@ -144,6 +154,68 @@ app.layout = html.Div([
                     ),
                 ], style={'textAlign': 'center'}),
             ]),
+
+            # Add Dataset Requirements Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Dataset Requirements",
+                            html.I(className="fa fa-check-circle ms-2", style={"color": "#198754"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.Ul([
+                                html.Li(
+                                    children=[
+                                        html.Strong("Format: "),
+                                        "CSV, .data, .dat, or plain text with headers. Auto-detects delimiter."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Data Type: "),
+                                        "Discrete/categorical variables required. All variables will be converted to categories."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Class Variable: "),
+                                        "Must have a column named 'class' containing the target variable."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Missing Values: "),
+                                        "Use '?' symbol. Rows with missing values will be removed."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Data Cleaning: "),
+                                        "Constant columns and perfectly correlated features are automatically removed."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Levels Validation: "),
+                                        "All categorical levels in the selected instance must match the training data."
+                                    ]
+                                ),
+                            ]),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "300px"}
+                    ),
+                ],
+                id="help-popover-dataset-requirements",
+                target="help-button-dataset-requirements",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
 
             # Table of predictor variables
             html.Div(className="card-big", children=[
@@ -523,11 +595,13 @@ import pandas as pd
 
 def parse_contents(contents, filename):
     """
-    Minimal parsing:
-     1) Decode base64
-     2) Read CSV or Excel
-     3) If we find 'Class' in any case variant, rename it to 'class'
-     4) Return the raw DataFrame (or None on error)
+    Enhanced parsing for Counterfactuals:
+    1) Decode base64
+    2) Read CSV/Excel
+    3) Clean and validate data
+    4) Convert to categories
+    5) Validate class column
+    6) Return cleaned DataFrame
     """
     if not contents:
         return None
@@ -548,15 +622,42 @@ def parse_contents(contents, filename):
         # Reset index
         df.reset_index(drop=True, inplace=True)
         
-        # === Reorder so that TARGET_COL (e.g. "Class") is the last column ===
-        if TARGET_COL in df.columns:
-            # Move "Class" from wherever it is, to the end
-            cols = [col for col in df.columns if col != TARGET_COL] + [TARGET_COL]
-            df = df[cols]
+        # Check for class column
+        if TARGET_COL not in df.columns:
+            print(f"Error: Required column '{TARGET_COL}' not found.")
+            return None
+
+        # Remove rows with missing values
+        df = df.dropna()
+
+        # Remove constant columns
+        constant_cols = [col for col in df.columns if df[col].nunique() == 1]
+        if constant_cols:
+            df = df.drop(columns=constant_cols)
+
+        # Convert all columns to categories
+        for col in df.columns:
+            df[col] = df[col].astype('category')
+
+        # Move class column to end
+        cols = [col for col in df.columns if col != TARGET_COL] + [TARGET_COL]
+        df = df[cols]
             
         return df
     except Exception as e:
-        print(f"Error in parse_and_clean: {e}")
+        print(f"Error in parse_contents: {e}")
         return None
+
+# Callback for dataset requirements popover
+@app.callback(
+    Output("help-popover-dataset-requirements", "is_open"),
+    Input("help-button-dataset-requirements", "n_clicks"),
+    State("help-popover-dataset-requirements", "is_open")
+)
+def toggle_dataset_requirements_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8050)
