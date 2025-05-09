@@ -171,37 +171,37 @@ app.layout = html.Div([
                                 html.Li(
                                     children=[
                                         html.Strong("Format: "),
-                                        "CSV, .data, .dat, or plain text with headers. Auto-detects delimiter."
+                                        "CSV, .data, or .dat files. Headers required. Auto-detects delimiter."
                                     ]
                                 ),
                                 html.Li(
                                     children=[
                                         html.Strong("Data Type: "),
-                                        "Discrete/categorical variables required. All variables will be converted to categories."
+                                        "All variables must be categorical/discrete. Numerical values will be automatically converted to categories."
                                     ]
                                 ),
                                 html.Li(
                                     children=[
                                         html.Strong("Class Variable: "),
-                                        "Must have a column named 'class' containing the target variable."
+                                        "Must have a column named 'class' containing the target variable. This column must be categorical."
                                     ]
                                 ),
                                 html.Li(
                                     children=[
                                         html.Strong("Missing Values: "),
-                                        "Use '?' symbol. Rows with missing values will be removed."
+                                        "Use '?' symbol. Rows with any missing values will be removed. Columns with >30% missing values will be removed."
                                     ]
                                 ),
                                 html.Li(
                                     children=[
                                         html.Strong("Data Cleaning: "),
-                                        "Constant columns and perfectly correlated features are automatically removed."
+                                        "The following will be automatically removed: constant columns, columns with >30% missing values, and perfectly correlated features."
                                     ]
                                 ),
                                 html.Li(
                                     children=[
                                         html.Strong("Levels Validation: "),
-                                        "All categorical levels in the selected instance must match the training data."
+                                        "When selecting an instance for counterfactual generation, all its categorical levels must exist in the training data."
                                     ]
                                 ),
                             ]),
@@ -611,12 +611,10 @@ def parse_contents(contents, filename):
         decoded = base64.b64decode(content_string)
 
         # Read file
-        if any(ext in filename.lower() for ext in ['.csv', '.data', '.txt']):
+        if any(ext in filename.lower() for ext in ['.csv', '.data', '.dat']):
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
-        elif any(ext in filename.lower() for ext in ['.xls', '.xlsx']):
-            df = pd.read_excel(io.BytesIO(decoded), na_values='?')
         else:
-            print("Unsupported extension.")
+            print("Unsupported extension. Please use .csv, .data, or .dat files.")
             return None
 
         # Reset index
@@ -627,13 +625,26 @@ def parse_contents(contents, filename):
             print(f"Error: Required column '{TARGET_COL}' not found.")
             return None
 
-        # Remove rows with missing values
+        # Remove columns with too many missing values (>30%)
+        missing_threshold = 0.3
+        cols_to_drop = [col for col in df.columns if df[col].isna().mean() > missing_threshold]
+        if cols_to_drop:
+            df = df.drop(columns=cols_to_drop)
+
+        # Remove rows with any missing values
         df = df.dropna()
 
         # Remove constant columns
         constant_cols = [col for col in df.columns if df[col].nunique() == 1]
         if constant_cols:
             df = df.drop(columns=constant_cols)
+
+        # Remove perfectly correlated features
+        corr_matrix = df.select_dtypes(include=['number']).corr().abs()
+        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+        to_drop = [column for column in upper.columns if any(upper[column] > 0.99)]
+        if to_drop:
+            df = df.drop(columns=to_drop)
 
         # Convert all columns to categories
         for col in df.columns:
