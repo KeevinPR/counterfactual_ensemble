@@ -620,10 +620,19 @@ def parse_contents(contents, filename):
         # Reset index
         df.reset_index(drop=True, inplace=True)
         
-        # Check for class column
-        if TARGET_COL not in df.columns:
-            print(f"Error: Required column '{TARGET_COL}' not found.")
+        # Check for class column (case insensitive)
+        class_col = None
+        for col in df.columns:
+            if col.lower() == TARGET_COL.lower():
+                class_col = col
+                break
+                
+        if class_col is None:
+            print(f"Error: Required column '{TARGET_COL}' (case insensitive) not found.")
             return None
+            
+        # Rename the class column to lowercase 'class' for consistency
+        df = df.rename(columns={class_col: TARGET_COL})
 
         # Remove columns with too many missing values (>30%)
         missing_threshold = 0.3
