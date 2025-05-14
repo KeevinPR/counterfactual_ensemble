@@ -450,6 +450,15 @@ app.layout = html.Div([
     ),
 
 dcc.Store(id='cleaned-data-store'),
+dcc.Store(id='notification-store'),
+html.Div(id='upload-alert', style={'marginTop': '10px'}),
+html.Div(id='notification-container', style={
+    'position': 'fixed',
+    'top': '20px',
+    'right': '20px',
+    'zIndex': '1000',
+    'width': '300px'
+}),
 
 ])
 
@@ -529,33 +538,51 @@ def use_default_dataset(value):
      Output('predictor-table', 'columnDefs'),
      Output('predictor-table', 'style'),
      Output('predictor-container', 'style'),
-     Output('use-default-dataset', 'value')],
+     Output('use-default-dataset', 'value'),
+     Output('notification-store', 'data')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
     State('use-default-dataset', 'value')
 )
 def update_predictor_table(contents, filename, default_value):
     if contents is not None:
-        df = parse_contents(contents, filename if filename else "default.csv")
-        if df is None:
-            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, []
-        
-        # Reset index to create 'Row Number' column
-        df = df.reset_index(drop=False)
-        df.rename(columns={'index': 'Row Number'}, inplace=True)
-        
-        columns = [{'headerName': col, 'field': col, 'width': 120} for col in df.columns]
-        data = df.to_dict('records')
-        total_width = sum([col['width'] for col in columns])
-        
-        # If the file was uploaded (not default), uncheck the checkbox
-        if filename is not None:
-            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, []
-        # If using default dataset, maintain checkbox state
-        else:
-            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, default_value
+        try:
+            df = parse_contents(contents, filename if filename else "default.csv")
+            if df is None:
+                return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+                    'header': 'Error',
+                    'message': 'Could not read the dataset. Please check the file format.',
+                    'icon': 'danger'
+                }
+            
+            # Reset index to create 'Row Number' column
+            df = df.reset_index(drop=False)
+            df.rename(columns={'index': 'Row Number'}, inplace=True)
+            
+            columns = [{'headerName': col, 'field': col, 'width': 120} for col in df.columns]
+            data = df.to_dict('records')
+            total_width = sum([col['width'] for col in columns])
+            
+            # If the file was uploaded (not default), uncheck the checkbox
+            if filename is not None:
+                return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, [], None
+            # If using default dataset, maintain checkbox state
+            else:
+                return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, default_value, None
+        except ValueError as e:
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+                'header': 'Error',
+                'message': str(e),
+                'icon': 'danger'
+            }
+        except Exception as e:
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+                'header': 'Error',
+                'message': 'Could not process the dataset.',
+                'icon': 'danger'
+            }
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, []
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], None
 
 # Callback to display selected row and update class options
 @app.callback(
@@ -752,7 +779,7 @@ def parse_contents(contents, filename):
     2) Read CSV/Excel
     3) Clean and validate data
     4) Convert to categories
-    5) Validate class column
+    5) Validate class column (case-insensitive)
     6) Return cleaned DataFrame
     """
     if not contents:
@@ -766,8 +793,7 @@ def parse_contents(contents, filename):
         if any(ext in filename.lower() for ext in ['.csv', '.data', '.dat']):
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
         else:
-            print("Unsupported extension. Please use .csv, .data, or .dat files.")
-            return None
+            raise ValueError("Please use .csv, .data, or .dat files.")
 
         # Reset index
         df.reset_index(drop=True, inplace=True)
@@ -780,8 +806,7 @@ def parse_contents(contents, filename):
                 break
                 
         if class_col is None:
-            print(f"Error: Required column '{TARGET_COL}' (case insensitive) not found.")
-            return None
+            raise ValueError("Missing 'class' column (case-insensitive).")
             
         # Rename the class column to lowercase 'class' for consistency
         df = df.rename(columns={class_col: TARGET_COL})
@@ -818,7 +843,7 @@ def parse_contents(contents, filename):
         return df
     except Exception as e:
         print(f"Error in parse_contents: {e}")
-        return None
+        raise  # Re-raise the exception to be caught by the callback
 
 # Callback for dataset requirements popover
 @app.callback(
@@ -830,6 +855,29 @@ def toggle_dataset_requirements_popover(n, is_open):
     if n:
         return not is_open
     return is_open
+
+# Add this new callback for notifications
+@app.callback(
+    Output('notification-container', 'children'),
+    Input('notification-store', 'data')
+)
+def show_notification(data):
+    if data is None:
+        return None
+    return dbc.Toast(
+        data['message'],
+        header=data['header'],
+        icon=data['icon'],
+        is_open=True,
+        dismissable=True,
+        style={
+            'position': 'fixed',
+            'top': '20px',
+            'right': '20px',
+            'width': '300px',
+            'zIndex': '1000'
+        }
+    )
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8050)
