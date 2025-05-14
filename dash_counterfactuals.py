@@ -789,11 +789,15 @@ def parse_contents(contents, filename):
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
 
-        # Read file
-        if any(ext in filename.lower() for ext in ['.csv', '.data', '.dat']):
+        # Read file - try to read as CSV regardless of extension
+        try:
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
-        else:
-            raise ValueError("Please use .csv, .data, or .dat files.")
+        except Exception as e:
+            # If reading as CSV fails, check if it's a supported extension
+            if any(ext in filename.lower() for ext in ['.data', '.dat']):
+                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
+            else:
+                raise ValueError("Could not read the file. Please ensure it's a valid CSV, .data, or .dat file.")
 
         # Reset index
         df.reset_index(drop=True, inplace=True)
