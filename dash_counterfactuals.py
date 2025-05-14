@@ -528,15 +528,17 @@ def use_default_dataset(value):
     [Output('predictor-table', 'rowData'),
      Output('predictor-table', 'columnDefs'),
      Output('predictor-table', 'style'),
-     Output('predictor-container', 'style')],
+     Output('predictor-container', 'style'),
+     Output('use-default-dataset', 'value')],
     Input('upload-data', 'contents'),
-    State('upload-data', 'filename')
+    State('upload-data', 'filename'),
+    State('use-default-dataset', 'value')
 )
-def update_predictor_table(contents, filename):
+def update_predictor_table(contents, filename, default_value):
     if contents is not None:
         df = parse_contents(contents, filename if filename else "default.csv")
         if df is None:
-            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, []
         
         # Reset index to create 'Row Number' column
         df = df.reset_index(drop=False)
@@ -545,9 +547,15 @@ def update_predictor_table(contents, filename):
         columns = [{'headerName': col, 'field': col, 'width': 120} for col in df.columns]
         data = df.to_dict('records')
         total_width = sum([col['width'] for col in columns])
-        return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}
+        
+        # If the file was uploaded (not default), uncheck the checkbox
+        if filename is not None:
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, []
+        # If using default dataset, maintain checkbox state
+        else:
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, default_value
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, []
 
 # Callback to display selected row and update class options
 @app.callback(
