@@ -463,11 +463,33 @@ app.clientside_callback(
     function(selectedRowStyle, resultsStyle) {
         // Check if the 'Selected Row' container is visible
         if (selectedRowStyle && selectedRowStyle.display === 'block') {
-            document.getElementById('selected-row-container').scrollIntoView({behavior: 'smooth'});
+            // Find the h3 element containing "3. Selected Row"
+            const headings = document.getElementsByTagName('h3');
+            for (let heading of headings) {
+                if (heading.textContent.includes('3. Selected Row')) {
+                    // Get the element's position relative to the viewport
+                    const elementPosition = heading.getBoundingClientRect().top;
+                    // Get the current scroll position
+                    const offsetPosition = elementPosition + window.pageYOffset - 100; // 100px offset for navbar
+                    
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                    break;
+                }
+            }
         }
         // Check if the 'Results' container is visible
         else if (resultsStyle && resultsStyle.display === 'block') {
-            document.getElementById('results-container').scrollIntoView({behavior: 'smooth'});
+            const resultsContainer = document.getElementById('results-container');
+            const elementPosition = resultsContainer.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - 100; // 100px offset for navbar
+            
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
         }
         return '';
     }
