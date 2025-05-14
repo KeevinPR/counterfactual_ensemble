@@ -219,7 +219,15 @@ app.layout = html.Div([
 
             # Table of predictor variables
             html.Div(className="card-big", children=[
-                html.H3("2. Predictor Variables", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("2. Predictor Variables", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-predictor-variables",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     AgGrid(
                         id='predictor-table',
@@ -250,7 +258,15 @@ app.layout = html.Div([
             ]),
             
             html.Div(className="card", children=[
-                html.H3("4. Select Class", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("4. Select Class", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-select-class",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     dcc.Dropdown(id='class-selector')
                 ], style={'width': '200px', 'margin': '0 auto', 'position': 'relative', 'zIndex': '9999'})
@@ -270,7 +286,15 @@ app.layout = html.Div([
 
             # Results Table
             html.Div(className="card-big", children=[
-                html.H3("Results", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("Results", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-results",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     AgGrid(
                         id='results-table',
@@ -286,7 +310,7 @@ app.layout = html.Div([
         ])
     ),  # end of dcc.Loading
 
-    # Popover **outside** the dcc.Loading
+    # Popovers **outside** the dcc.Loading
     dbc.Popover(
         [
             dbc.PopoverHeader(
@@ -295,7 +319,7 @@ app.layout = html.Div([
                     html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
                 ],
                 style={
-                    "backgroundColor": "#f8f9fa",  # Light gray background
+                    "backgroundColor": "#f8f9fa",
                     "fontWeight": "bold"
                 }
             ),
@@ -312,7 +336,7 @@ app.layout = html.Div([
                             ),
                         ]
                     ),
-                    html.Hr(),  # Horizontal rule for a modern divider
+                    html.Hr(),
                     html.P("Feel free to upload your own dataset at any time.")
                 ],
                 style={
@@ -327,6 +351,104 @@ app.layout = html.Div([
         is_open=False,
         trigger="hover"
     ),
+
+    # New Popover for Predictor Variables
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Predictor Variables",
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P("Select a row from the table to generate counterfactuals for that instance."),
+                    html.P("The selected row will be used as the starting point for generating alternative scenarios."),
+                    html.P("You can sort and filter the table to find specific instances."),
+                ],
+                style={
+                    "backgroundColor": "#ffffff",
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-predictor-variables",
+        target="help-button-predictor-variables",
+        placement="right",
+        is_open=False,
+        trigger="hover"
+    ),
+
+    # New Popover for Select Class
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Select Class",
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P("Choose the target class you want to achieve for the selected instance."),
+                    html.P("The counterfactual generation will try to find the minimum changes needed to reach this class."),
+                    html.P("The dropdown shows all possible class values from your dataset."),
+                ],
+                style={
+                    "backgroundColor": "#ffffff",
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-select-class",
+        target="help-button-select-class",
+        placement="right",
+        is_open=False,
+        trigger="hover"
+    ),
+
+    # New Popover for Results
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Results",
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P("The results table shows the counterfactual instances generated by the algorithms."),
+                    html.P("Each row represents a possible alternative scenario that would lead to your target class."),
+                    html.P("The changes needed to reach the target class are highlighted in the table."),
+                    html.P("You can compare different counterfactuals to find the most suitable solution for your needs."),
+                ],
+                style={
+                    "backgroundColor": "#ffffff",
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-results",
+        target="help-button-results",
+        placement="right",
+        is_open=False,
+        trigger="hover"
+    ),
+
 dcc.Store(id='cleaned-data-store'),
 
 ])
