@@ -541,7 +541,8 @@ def use_default_dataset(value):
      Output('predictor-table', 'columnDefs'),
      Output('predictor-table', 'style'),
      Output('predictor-container', 'style'),
-     Output('notification-store', 'data')],
+     Output('notification-store', 'data'),
+     Output('use-default-dataset', 'value')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
     prevent_initial_call=True
@@ -555,7 +556,7 @@ def update_predictor_table(contents, filename):
                     'header': 'Error',
                     'message': 'Could not read the dataset. Please check the file format.',
                     'icon': 'danger'
-                }
+                }, []
             
             # Reset index to create 'Row Number' column
             df = df.reset_index(drop=False)
@@ -565,21 +566,21 @@ def update_predictor_table(contents, filename):
             data = df.to_dict('records')
             total_width = sum([col['width'] for col in columns])
             
-            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None, dash.no_update
         except ValueError as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': str(e),
                 'icon': 'danger'
-            }
+            }, []
         except Exception as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': 'Could not process the dataset.',
                 'icon': 'danger'
-            }
+            }, []
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None, dash.no_update
 
 # Callback to display selected row and update class options
 @app.callback(
