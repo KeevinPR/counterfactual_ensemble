@@ -454,10 +454,13 @@ dcc.Store(id='notification-store'),
 html.Div(id='upload-alert', style={'marginTop': '10px'}),
 html.Div(id='notification-container', style={
     'position': 'fixed',
-    'top': '20px',
+    'bottom': '20px',
     'right': '20px',
     'zIndex': '1000',
-    'width': '300px'
+    'width': '300px',
+    'transition': 'all 0.3s ease-in-out',
+    'transform': 'translateY(100%)',
+    'opacity': '0'
 }),
 
 ])
@@ -912,28 +915,53 @@ def toggle_dataset_requirements_popover(n, is_open):
         return not is_open
     return is_open
 
-# Add this new callback for notifications
+# Modificar el callback de notificaciones
 @app.callback(
-    Output('notification-container', 'children'),
+    [Output('notification-container', 'children'),
+     Output('notification-container', 'style')],
     Input('notification-store', 'data')
 )
 def show_notification(data):
     if data is None:
-        return None
-    return dbc.Toast(
+        return None, {
+            'position': 'fixed',
+            'bottom': '20px',
+            'right': '20px',
+            'zIndex': '1000',
+            'width': '300px',
+            'transition': 'all 0.3s ease-in-out',
+            'transform': 'translateY(100%)',
+            'opacity': '0'
+        }
+    
+    # Crear el toast con animación
+    toast = dbc.Toast(
         data['message'],
         header=data['header'],
         icon=data['icon'],
         is_open=True,
         dismissable=True,
         style={
-            'position': 'fixed',
-            'top': '20px',
-            'right': '20px',
-            'width': '300px',
-            'zIndex': '1000'
+            'width': '100%',
+            'boxShadow': '0 4px 6px rgba(0, 0, 0, 0.1)',
+            'borderRadius': '8px',
+            'marginBottom': '10px'
         }
     )
+    
+    # Estilo para mostrar la notificación con animación
+    container_style = {
+        'position': 'fixed',
+        'bottom': '20px',
+        'right': '20px',
+        'zIndex': '1000',
+        'width': '300px',
+        'transition': 'all 0.3s ease-in-out',
+        'transform': 'translateY(0)',
+        'opacity': '1'
+    }
+    
+    return toast, container_style
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8050)
