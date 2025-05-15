@@ -666,7 +666,22 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
             }
     
         # Generate counterfactuals
-        df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
+        try:
+            df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
+        except ValueError as e:
+            # Re-enable the "Run" button and show the error message
+            return [], [], {}, {'display': 'none'}, False, 'done', {
+                'header': 'Error',
+                'message': str(e),
+                'icon': 'warning'
+            }
+        except Exception as e:
+            # Re-enable the "Run" button and show the error message
+            return [], [], {}, {'display': 'none'}, False, 'done', {
+                'header': 'Error',
+                'message': f'Error generating counterfactuals: {str(e)}',
+                'icon': 'danger'
+            }
     
         # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
@@ -687,7 +702,7 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
             }
     except Exception as e:
         # Log the error
-        print(f"Error generating counterfactuals: {e}")
+        print(f"Error in run_counterfactual: {e}")
         # Re-enable the "Run" button and update the store
         disabled = False
         return [], [], {}, {'display': 'none'}, disabled, 'done', {
@@ -759,29 +774,50 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
 
     # 6) Call your EDA-based method
     try:
-        df_result, remaing_models, accuracy, time_taken = eda.ensemble_counter_eda(
-            X=train_df_str,
-            input=selected_row_str.iloc[0].values,
-            obj_class=new_class,
-            test=test_df_str,
-            discrete_variables=discrete_variables,
-            verbose=True,
-            no_train=True
-        )
+        # Check if the target class exists in the dataset
+        if new_class not in df[TARGET_COL].unique():
+            raise ValueError(f"Target class '{new_class}' does not exist in the dataset.")
+
+        # Check if there are enough examples of the target class
+        target_class_count = len(df[df[TARGET_COL] == new_class])
+        if target_class_count < 2:  # Need at least 2 examples for training
+            raise ValueError(f"Not enough examples of class '{new_class}' in the dataset (found {target_class_count}).")
+
+        # Check if the selected row's class matches the target class
+        if selected_row[TARGET_COL] == new_class:
+            raise ValueError(f"The selected instance already belongs to class '{new_class}'. No counterfactual needed.")
+
+        try:
+            df_result, remaing_models, accuracy, time_taken = eda.ensemble_counter_eda(
+                X=train_df_str,
+                input=selected_row_str.iloc[0].values,
+                obj_class=new_class,
+                test=test_df_str,
+                discrete_variables=discrete_variables,
+                verbose=True,
+                no_train=True
+            )
+        except Exception as e:
+            if "DataFrame constructor not properly called" in str(e):
+                raise ValueError("Could not generate counterfactuals. This may be because the target class is not achievable from the current instance's characteristics.")
+            raise
         
         # Check if any models were available
         if remaing_models[0] == 0:
-            raise ValueError("No models available that can predict the target class correctly.")
+            raise ValueError("No models available that can predict the target class correctly. This may be because the target class is not plausible for the selected instance.")
             
         # Check if any counterfactuals were found
         if df_result is None or df_result.empty:
-            raise ValueError("No counterfactuals could be generated for the selected class.")
+            raise ValueError("No counterfactuals could be generated for the selected class. This may be because the target class is not achievable from the current instance.")
             
         return df_result
         
+    except ValueError as e:
+        print(f"Error in generate_counterfactuals: {e}")
+        raise  # Re-raise the ValueError to be caught by the callback
     except Exception as e:
-        print(f"Error in ensemble_counter_eda: {e}")
-        raise  # Re-raise the exception to be caught by the callback
+        print(f"Unexpected error in generate_counterfactuals: {e}")
+        raise ValueError(f"An unexpected error occurred: {str(e)}")
 
 # Function to parse and clean the uploaded dataset
 import re
