@@ -538,18 +538,17 @@ def use_default_dataset(value):
      Output('predictor-table', 'columnDefs'),
      Output('predictor-table', 'style'),
      Output('predictor-container', 'style'),
-     Output('use-default-dataset', 'value'),
      Output('notification-store', 'data')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
-    State('use-default-dataset', 'value')
+    prevent_initial_call=True
 )
-def update_predictor_table(contents, filename, default_value):
+def update_predictor_table(contents, filename):
     if contents is not None:
         try:
             df = parse_contents(contents, filename if filename else "default.csv")
             if df is None:
-                return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+                return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                     'header': 'Error',
                     'message': 'Could not read the dataset. Please check the file format.',
                     'icon': 'danger'
@@ -563,26 +562,21 @@ def update_predictor_table(contents, filename, default_value):
             data = df.to_dict('records')
             total_width = sum([col['width'] for col in columns])
             
-            # If the file was uploaded (not default), uncheck the checkbox
-            if filename is not None:
-                return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, [], None
-            # If using default dataset, maintain checkbox state
-            else:
-                return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, default_value, None
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None
         except ValueError as e:
-            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': str(e),
                 'icon': 'danger'
             }
         except Exception as e:
-            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], {
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': 'Could not process the dataset.',
                 'icon': 'danger'
             }
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, [], None
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None
 
 # Callback to display selected row and update class options
 @app.callback(
@@ -629,16 +623,18 @@ def display_selected_row_and_class(selectedRows, data):
      Output('results-table', 'style'),
      Output('results-container', 'style'),
      Output('run-button', 'disabled'),
-     Output('run-button-store', 'data')],
+     Output('run-button-store', 'data'),
+     Output('notification-store', 'data', allow_duplicate=True)],
     Input('run-button', 'n_clicks'),
     State('predictor-table', 'selectedRows'),
     State('class-selector', 'value'),
-    State('upload-data', 'contents')
+    State('upload-data', 'contents'),
+    prevent_initial_call=True
 )
 def run_counterfactual(n_clicks, selectedRows, new_class, contents):
     num_models = 5
     if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or contents is None:
-        return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+        return [], [], {}, {'display': 'none'}, False, None, None  # Button enabled
     
     # Disable the "Run" button during processing
     disabled = True
@@ -650,8 +646,11 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
     
         # Check if data loaded correctly
         if df is None or df.empty:
-            print("Error: The data was not loaded correctly.")
-            return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': 'Could not read the dataset. Please check the file format.',
+                'icon': 'danger'
+            }
     
         # Process the selected row
         selected_row = selectedRows[0]
@@ -660,8 +659,11 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
     
         # Validate input levels
         if not validate_input_levels(df, selected_row_clean):
-            print("Error: Levels in the selected instance do not match levels in the loaded data.")
-            return [], [], {}, {'display': 'none'}, False, None  # Button enabled
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': 'Levels in the selected instance do not match levels in the loaded data.',
+                'icon': 'danger'
+            }
     
         # Generate counterfactuals
         df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
@@ -674,17 +676,25 @@ def run_counterfactual(n_clicks, selectedRows, new_class, contents):
             total_width = sum([col['width'] for col in columns])
             # Re-enable the "Run" button and update the store
             disabled = False
-            return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}, disabled, 'done'
+            return data, columns, {'height': '300px', 'width': f'{total_width}px'}, {'display': 'block'}, disabled, 'done', None
         else:
             # Re-enable the "Run" button and update the store
             disabled = False
-            return [], [], {}, {'display': 'none'}, disabled, 'done'
+            return [], [], {}, {'display': 'none'}, disabled, 'done', {
+                'header': 'No Counterfactuals Found',
+                'message': 'Could not generate counterfactuals for the selected class. This may be because there are no plausible instances of this class in the dataset.',
+                'icon': 'warning'
+            }
     except Exception as e:
         # Log the error
         print(f"Error generating counterfactuals: {e}")
         # Re-enable the "Run" button and update the store
         disabled = False
-        return [], [], {}, {'display': 'none'}, disabled, 'done'
+        return [], [], {}, {'display': 'none'}, disabled, 'done', {
+            'header': 'Error',
+            'message': f'Error generating counterfactuals: {str(e)}',
+            'icon': 'danger'
+        }
 
 def validate_input_levels(df, selected_row):
     """
@@ -749,7 +759,7 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
 
     # 6) Call your EDA-based method
     try:
-        df_result, _, accuracy, time_taken = eda.ensemble_counter_eda(
+        df_result, remaing_models, accuracy, time_taken = eda.ensemble_counter_eda(
             X=train_df_str,
             input=selected_row_str.iloc[0].values,
             obj_class=new_class,
@@ -758,14 +768,20 @@ def generate_counterfactuals(selected_row, new_class, num_models, df):
             verbose=True,
             no_train=True
         )
+        
+        # Check if any models were available
+        if remaing_models[0] == 0:
+            raise ValueError("No models available that can predict the target class correctly.")
+            
+        # Check if any counterfactuals were found
+        if df_result is None or df_result.empty:
+            raise ValueError("No counterfactuals could be generated for the selected class.")
+            
+        return df_result
+        
     except Exception as e:
         print(f"Error in ensemble_counter_eda: {e}")
-        return None
-
-    if df_result is not None and not df_result.empty:
-        return df_result
-    else:
-        return None
+        raise  # Re-raise the exception to be caught by the callback
 
 # Function to parse and clean the uploaded dataset
 import re
