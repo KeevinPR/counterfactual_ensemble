@@ -255,7 +255,7 @@ app.layout = html.Div([
                         )
                     ], style={'display': 'flex', 'justifyContent': 'center'})
                 ], id='selected-row-container', style={'display': 'none'})
-            ]),
+            ], id='selected-row-card', style={'display': 'none'}),
             
             html.Div(className="card", children=[
                 html.Div([
@@ -590,6 +590,7 @@ def update_predictor_table(contents, use_default, filename):
      Output('selected-row-table', 'columnDefs'),
      Output('selected-row-table', 'style'),
      Output('selected-row-container', 'style'),
+     Output('selected-row-card', 'style'),
      Output('class-selector', 'options'),
      Output('class-selector', 'value'),
      Output('class-container', 'style'),
@@ -615,12 +616,13 @@ def display_selected_row_and_class(selectedRows, data):
                 columns,
                 {'height': '100px', 'width': f'{total_width}px'},
                 {'display': 'block'},
+                {'display': 'block'},
                 class_options,
                 class_value,
                 {'display': 'block'},
                 {'display': 'block'}
             )
-    return [], [], {}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
+    return [], [], {}, {'display': 'none'}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
 
 # Callback for counterfactual generation
 @app.callback(
