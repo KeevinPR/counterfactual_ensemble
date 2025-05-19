@@ -511,43 +511,41 @@ app.clientside_callback(
      Input('results-container', 'style')]
 )
 
-# NEW Callback: Use default dataset -> sets 'upload-data.contents' (no ID changes!)
-@app.callback(
-    Output('upload-data', 'contents'),
-    Input('use-default-dataset', 'value'),
-    prevent_initial_call=True
-)
-def use_default_dataset(value):
-    """
-    If 'default' is checked, read your local 'carwithnames.data' file,
-    encode as base64, and set upload-data.contents. This triggers
-    the existing 'update_predictor_table' callback automatically.
-    """
-    if 'default' in value:
-        default_file = '/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/Counterfactuals/carwithnames.data'  # Adjust path as needed
-        try:
-            with open(default_file, 'rb') as f:
-                raw = f.read()
-            b64 = base64.b64encode(raw).decode()
-            return f"data:text/csv;base64,{b64}"
-        except Exception as e:
-            print(f"Error reading default dataset: {e}")
-            return dash.no_update
-    return dash.no_update
-
-# Callback to update the predictor table
+# Modified callback to handle both file upload and default dataset
 @app.callback(
     [Output('predictor-table', 'rowData'),
      Output('predictor-table', 'columnDefs'),
      Output('predictor-table', 'style'),
      Output('predictor-container', 'style'),
      Output('notification-store', 'data'),
-     Output('use-default-dataset', 'value')],
-    Input('upload-data', 'contents'),
+     Output('use-default-dataset', 'value'),
+     Output('cleaned-data-store', 'data')],
+    [Input('upload-data', 'contents'),
+     Input('use-default-dataset', 'value')],
     State('upload-data', 'filename'),
     prevent_initial_call=True
 )
-def update_predictor_table(contents, filename):
+def update_predictor_table(contents, use_default, filename):
+    # Get the trigger that caused the callback
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if trigger_id == 'use-default-dataset' and 'default' in use_default:
+        # Handle default dataset
+        default_file = '/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/Counterfactuals/carwithnames.data'
+        try:
+            with open(default_file, 'rb') as f:
+                raw = f.read()
+            b64 = base64.b64encode(raw).decode()
+            contents = f"data:text/csv;base64,{b64}"
+        except Exception as e:
+            print(f"Error reading default dataset: {e}")
+            return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
+                'header': 'Error',
+                'message': f'Error reading default dataset: {str(e)}',
+                'icon': 'danger'
+            }, [], None
+    
     if contents is not None:
         try:
             df = parse_contents(contents, filename if filename else "default.csv")
@@ -556,7 +554,7 @@ def update_predictor_table(contents, filename):
                     'header': 'Error',
                     'message': 'Could not read the dataset. Please check the file format.',
                     'icon': 'danger'
-                }, []
+                }, [], None
             
             # Reset index to create 'Row Number' column
             df = df.reset_index(drop=False)
@@ -566,21 +564,25 @@ def update_predictor_table(contents, filename):
             data = df.to_dict('records')
             total_width = sum([col['width'] for col in columns])
             
-            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None, dash.no_update
+            # Store the cleaned data without the 'Row Number' column
+            df_cleaned = df.drop(columns=['Row Number'])
+            cleaned_data = df_cleaned.to_dict('records')
+            
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None, dash.no_update, cleaned_data
         except ValueError as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': str(e),
                 'icon': 'danger'
-            }, []
+            }, [], None
         except Exception as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': 'Could not process the dataset.',
                 'icon': 'danger'
-            }, []
+            }, [], None
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None, dash.no_update
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None, dash.no_update, None
 
 # Callback to display selected row and update class options
 @app.callback(
@@ -630,23 +632,22 @@ def display_selected_row_and_class(selectedRows, data):
      Output('run-button-store', 'data'),
      Output('notification-store', 'data', allow_duplicate=True)],
     Input('run-button', 'n_clicks'),
-    State('predictor-table', 'selectedRows'),
-    State('class-selector', 'value'),
-    State('upload-data', 'contents'),
+    [State('predictor-table', 'selectedRows'),
+     State('class-selector', 'value'),
+     State('cleaned-data-store', 'data')],
     prevent_initial_call=True
 )
-def run_counterfactual(n_clicks, selectedRows, new_class, contents):
+def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
     num_models = 5
-    if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or contents is None:
+    if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or cleaned_data is None:
         return [], [], {}, {'display': 'none'}, False, None, None  # Button enabled
     
     # Disable the "Run" button during processing
     disabled = True
     
     try:
-        # Parse the uploaded data
-        filename = 'temp_data.csv'  # Temporary filename
-        df = parse_contents(contents, filename)
+        # Convert cleaned data back to DataFrame
+        df = pd.DataFrame(cleaned_data)
     
         # Check if data loaded correctly
         if df is None or df.empty:
