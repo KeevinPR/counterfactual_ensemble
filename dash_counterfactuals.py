@@ -837,6 +837,29 @@ import re
 import numpy as np
 import pandas as pd
 
+def detect_variable_dependencies(df):
+    """
+    Detecta dependencias lógicas entre variables categóricas.
+    Retorna una lista de pares de variables que tienen dependencias lógicas.
+    Ignora las dependencias con la variable objetivo (class).
+    """
+    dependencies = []
+    
+    # Obtener las columnas predictoras (excluyendo la variable objetivo)
+    predictor_cols = [col for col in df.columns if col != TARGET_COL]
+    
+    # Para cada par de variables predictoras
+    for i, col1 in enumerate(predictor_cols):
+        for col2 in predictor_cols[i+1:]:
+            # Si una variable es completamente determinada por otra
+            if df.groupby(col1)[col2].nunique().max() == 1:
+                dependencies.append((col1, col2))
+            # Si una variable es determinada por la combinación de otras
+            elif df.groupby([col1, col2])[TARGET_COL].nunique().max() == 1:
+                dependencies.append((col1, col2))
+    
+    return dependencies
+
 def parse_contents(contents, filename):
     """
     Enhanced parsing for Counterfactuals:
@@ -845,7 +868,8 @@ def parse_contents(contents, filename):
     3) Clean and validate data
     4) Convert to categories
     5) Validate class column (case-insensitive)
-    6) Return cleaned DataFrame
+    6) Check for variable dependencies
+    7) Return cleaned DataFrame
     """
     if not contents:
         return None
@@ -894,16 +918,15 @@ def parse_contents(contents, filename):
         if constant_cols:
             df = df.drop(columns=constant_cols)
 
-        # Remove perfectly correlated features
-        corr_matrix = df.select_dtypes(include=['number']).corr().abs()
-        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-        to_drop = [column for column in upper.columns if any(upper[column] > 0.99)]
-        if to_drop:
-            df = df.drop(columns=to_drop)
-
         # Convert all columns to categories
         for col in df.columns:
             df[col] = df[col].astype('category')
+
+        # Check for variable dependencies
+        dependencies = detect_variable_dependencies(df)
+        if dependencies:
+            dep_str = ", ".join([f"'{d[0]}' and '{d[1]}'" for d in dependencies])
+            raise ValueError(f"Dataset contains dependent variables: {dep_str}. The system requires all variables to be independent.")
 
         # Move class column to end
         cols = [col for col in df.columns if col != TARGET_COL] + [TARGET_COL]
