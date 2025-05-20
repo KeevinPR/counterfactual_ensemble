@@ -967,7 +967,7 @@ def show_notification(data):
             'opacity': '0'
         }
     
-    # Crear el toast con animación
+    # Create toast with animation
     toast = dbc.Toast(
         data['message'],
         header=data['header'],
@@ -982,7 +982,7 @@ def show_notification(data):
         }
     )
     
-    # Estilo para mostrar la notificación con animación
+    # Style to show notification with animation
     container_style = {
         'position': 'fixed',
         'bottom': '20px',
