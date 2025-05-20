@@ -242,3 +242,13 @@ h1 {
     z-index: 9999 !important;
 }
  
+/* Highlight input row in results table */
+.ag-row.input-row .ag-cell {
+    font-weight: bold;
+}
+
+/* Style for extra metric columns */
+.result-extra-col {
+    background-color: #f0f8ff;
+}
+

@@ -307,7 +307,10 @@ app.layout = html.Div([
                         id='results-table',
                         columnDefs=[],
                         rowData=[],
-                        defaultColDef={'resizable': True}
+                        defaultColDef={'resizable': True},
+                        dashGridOptions={
+                            'rowClassRules': {'input-row': 'params.node.rowIndex === 0'}
+                        }
                     )
                 ], style={'display': 'flex', 'justifyContent': 'center'})
             ], id='results-container', style={'display': 'none'}),
@@ -703,7 +706,12 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
         if df_counterfactual is not None and not df_counterfactual.empty:
             # Prepare the results table
             data = df_counterfactual.to_dict('records')
-            columns = [{'headerName': col, 'field': col, 'width': 100} for col in df_counterfactual.columns]
+            columns = []
+            for col in df_counterfactual.columns:
+                col_def = {'headerName': col, 'field': col, 'width': 100}
+                if col in ['Chg Variables', 'Prediction score', 'Distance', 'Plausible']:
+                    col_def['cellClass'] = 'result-extra-col'
+                columns.append(col_def)
             total_width = sum([col['width'] for col in columns])
             # Re-enable the "Run" button and update the store
             disabled = False
