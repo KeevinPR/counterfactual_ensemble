@@ -182,6 +182,12 @@ app.layout = html.Div([
                                 ),
                                 html.Li(
                                     children=[
+                                        html.Strong("Variable Requirements: "),
+                                        "All variables must be both categorical AND independent of each other. The system cannot handle datasets with dependent variables (e.g., variables that are derived from or depend on other variables)."
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
                                         html.Strong("Class Variable: "),
                                         "Must have a column named 'class' containing the target variable. This column must be categorical."
                                     ]
