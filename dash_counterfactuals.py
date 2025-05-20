@@ -12,6 +12,7 @@ from ensemble_counterfactuals.algorithms import ga, eda, moeda, nsga2, ebna, moe
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri, default_converter
 from rpy2.robjects.conversion import localconverter
+from scipy.stats import chi2_contingency
 
 # Activate the pandas2ri conversion globally
 pandas2ri.activate()
@@ -833,23 +834,17 @@ import pandas as pd
 
 def detect_variable_dependencies(df):
     """
-    Detecta dependencias lógicas entre variables categóricas.
-    Retorna una lista de pares de variables que tienen dependencias lógicas.
-    Ignora las dependencias con la variable objetivo (class).
+    Detect only deterministic dependencies between categorical variables.
+    Returns a list of variable pairs that have deterministic relationships.
+    Ignores dependencies with the target variable (class).
     """
     dependencies = []
-    
-    # Obtener las columnas predictoras (excluyendo la variable objetivo)
     predictor_cols = [col for col in df.columns if col != TARGET_COL]
     
-    # Para cada par de variables predictoras
     for i, col1 in enumerate(predictor_cols):
         for col2 in predictor_cols[i+1:]:
-            # Si una variable es completamente determinada por otra
+            # Check only for deterministic relationships
             if df.groupby(col1)[col2].nunique().max() == 1:
-                dependencies.append((col1, col2))
-            # Si una variable es determinada por la combinación de otras
-            elif df.groupby([col1, col2])[TARGET_COL].nunique().max() == 1:
                 dependencies.append((col1, col2))
     
     return dependencies
@@ -862,7 +857,7 @@ def parse_contents(contents, filename):
     3) Clean and validate data
     4) Convert to categories
     5) Validate class column (case-insensitive)
-    6) Check for variable dependencies
+    6) Check for deterministic dependencies
     7) Return cleaned DataFrame
     """
     if not contents:
@@ -872,11 +867,10 @@ def parse_contents(contents, filename):
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
 
-        # Read file - try to read as CSV regardless of extension
+        # Read file
         try:
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
         except Exception as e:
-            # If reading as CSV fails, check if it's a supported extension
             if any(ext in filename.lower() for ext in ['.data', '.dat']):
                 df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), na_values='?')
             else:
@@ -916,11 +910,15 @@ def parse_contents(contents, filename):
         for col in df.columns:
             df[col] = df[col].astype('category')
 
-        # Check for variable dependencies
+        # Check for deterministic dependencies
         dependencies = detect_variable_dependencies(df)
         if dependencies:
             dep_str = ", ".join([f"'{d[0]}' and '{d[1]}'" for d in dependencies])
-            raise ValueError(f"Dataset contains dependent variables: {dep_str}. The system requires all variables to be independent.")
+            raise ValueError(
+                f"Dataset contains deterministic dependencies: {dep_str}. "
+                "These variables are completely determined by each other, which can lead to inconsistent counterfactuals. "
+                "Please remove one of each dependent pair before proceeding."
+            )
 
         # Move class column to end
         cols = [col for col in df.columns if col != TARGET_COL] + [TARGET_COL]
@@ -929,7 +927,7 @@ def parse_contents(contents, filename):
         return df
     except Exception as e:
         print(f"Error in parse_contents: {e}")
-        raise  # Re-raise the exception to be caught by the callback
+        raise
 
 # Callback for dataset requirements popover
 @app.callback(
