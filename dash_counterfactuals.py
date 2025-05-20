@@ -525,7 +525,20 @@ app.clientside_callback(
      Output('predictor-container', 'style'),
      Output('notification-store', 'data'),
      Output('use-default-dataset', 'value'),
-     Output('cleaned-data-store', 'data')],
+     Output('cleaned-data-store', 'data'),
+     Output('selected-row-table', 'rowData', allow_duplicate=True),
+     Output('selected-row-table', 'columnDefs', allow_duplicate=True),
+     Output('selected-row-table', 'style', allow_duplicate=True),
+     Output('selected-row-container', 'style', allow_duplicate=True),
+     Output('selected-row-card', 'style', allow_duplicate=True),
+     Output('class-selector', 'options', allow_duplicate=True),
+     Output('class-selector', 'value', allow_duplicate=True),
+     Output('class-container', 'style', allow_duplicate=True),
+     Output('model-container', 'style', allow_duplicate=True),
+     Output('results-table', 'rowData', allow_duplicate=True),
+     Output('results-table', 'columnDefs', allow_duplicate=True),
+     Output('results-table', 'style', allow_duplicate=True),
+     Output('results-container', 'style', allow_duplicate=True)],
     [Input('upload-data', 'contents'),
      Input('use-default-dataset', 'value')],
     State('upload-data', 'filename'),
@@ -535,6 +548,10 @@ def update_predictor_table(contents, use_default, filename):
     # Get the trigger that caused the callback
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Initialize empty results for cleaning previous state
+    empty_results = [], [], {}, {'display': 'none'}
+    empty_selected = [], [], {}, {'display': 'none'}, {'display': 'none'}, [], None, {'display': 'none'}, {'display': 'none'}
     
     if trigger_id == 'use-default-dataset' and 'default' in use_default:
         # Handle default dataset
@@ -550,7 +567,7 @@ def update_predictor_table(contents, use_default, filename):
                 'header': 'Error',
                 'message': f'Error reading default dataset: {str(e)}',
                 'icon': 'danger'
-            }, [], None
+            }, [], None, *empty_selected, *empty_results
     
     if contents is not None:
         try:
@@ -560,7 +577,7 @@ def update_predictor_table(contents, use_default, filename):
                     'header': 'Error',
                     'message': 'Could not read the dataset. Please check the file format.',
                     'icon': 'danger'
-                }, [], None
+                }, [], None, *empty_selected, *empty_results
             
             # Reset index to create 'Row Number' column
             df = df.reset_index(drop=False)
@@ -574,35 +591,36 @@ def update_predictor_table(contents, use_default, filename):
             df_cleaned = df.drop(columns=['Row Number'])
             cleaned_data = df_cleaned.to_dict('records')
             
-            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None, dash.no_update, cleaned_data
+            return data, columns, {'height': '400px', 'width': f'{total_width}px'}, {'display': 'block'}, None, dash.no_update, cleaned_data, *empty_selected, *empty_results
         except ValueError as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': str(e),
                 'icon': 'danger'
-            }, [], None
+            }, [], None, *empty_selected, *empty_results
         except Exception as e:
             return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, {
                 'header': 'Error',
                 'message': 'Could not process the dataset.',
                 'icon': 'danger'
-            }, [], None
+            }, [], None, *empty_selected, *empty_results
     else:
-        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None, dash.no_update, None
+        return [], [], {'height': '400px', 'width': '100%'}, {'display': 'none'}, None, dash.no_update, None, *empty_selected, *empty_results
 
 # Callback to display selected row and update class options
 @app.callback(
-    [Output('selected-row-table', 'rowData'),
-     Output('selected-row-table', 'columnDefs'),
-     Output('selected-row-table', 'style'),
-     Output('selected-row-container', 'style'),
-     Output('selected-row-card', 'style'),
-     Output('class-selector', 'options'),
-     Output('class-selector', 'value'),
-     Output('class-container', 'style'),
-     Output('model-container', 'style')],
+    [Output('selected-row-table', 'rowData', allow_duplicate=True),
+     Output('selected-row-table', 'columnDefs', allow_duplicate=True),
+     Output('selected-row-table', 'style', allow_duplicate=True),
+     Output('selected-row-container', 'style', allow_duplicate=True),
+     Output('selected-row-card', 'style', allow_duplicate=True),
+     Output('class-selector', 'options', allow_duplicate=True),
+     Output('class-selector', 'value', allow_duplicate=True),
+     Output('class-container', 'style', allow_duplicate=True),
+     Output('model-container', 'style', allow_duplicate=True)],
     Input('predictor-table', 'selectedRows'),
-    State('predictor-table', 'rowData')
+    State('predictor-table', 'rowData'),
+    prevent_initial_call=True
 )
 def display_selected_row_and_class(selectedRows, data):
     if selectedRows:
@@ -632,10 +650,10 @@ def display_selected_row_and_class(selectedRows, data):
 
 # Callback for counterfactual generation
 @app.callback(
-    [Output('results-table', 'rowData'),
-     Output('results-table', 'columnDefs'),
-     Output('results-table', 'style'),
-     Output('results-container', 'style'),
+    [Output('results-table', 'rowData', allow_duplicate=True),
+     Output('results-table', 'columnDefs', allow_duplicate=True),
+     Output('results-table', 'style', allow_duplicate=True),
+     Output('results-container', 'style', allow_duplicate=True),
      Output('run-button', 'disabled'),
      Output('run-button-store', 'data'),
      Output('notification-store', 'data', allow_duplicate=True)],
@@ -659,11 +677,7 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
     
         # Check if data loaded correctly
         if df is None or df.empty:
-            return [], [], {}, {'display': 'none'}, False, None, {
-                'header': 'Error',
-                'message': 'Could not read the dataset. Please check the file format.',
-                'icon': 'danger'
-            }
+            return [], [], {}, {'display': 'none'}, False, None, None
     
         # Process the selected row
         selected_row = selectedRows[0]
@@ -672,29 +686,17 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
     
         # Validate input levels
         if not validate_input_levels(df, selected_row_clean):
-            return [], [], {}, {'display': 'none'}, False, None, {
-                'header': 'Error',
-                'message': 'Levels in the selected instance do not match levels in the loaded data.',
-                'icon': 'danger'
-            }
+            return [], [], {}, {'display': 'none'}, False, None, None
     
         # Generate counterfactuals
         try:
             df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
         except ValueError as e:
             # Re-enable the "Run" button and show the error message
-            return [], [], {}, {'display': 'none'}, False, 'done', {
-                'header': 'Error',
-                'message': str(e),
-                'icon': 'warning'
-            }
+            return [], [], {}, {'display': 'none'}, False, None, None
         except Exception as e:
             # Re-enable the "Run" button and show the error message
-            return [], [], {}, {'display': 'none'}, False, 'done', {
-                'header': 'Error',
-                'message': f'Error generating counterfactuals: {str(e)}',
-                'icon': 'danger'
-            }
+            return [], [], {}, {'display': 'none'}, False, None, None
     
         # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
@@ -708,21 +710,13 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
         else:
             # Re-enable the "Run" button and update the store
             disabled = False
-            return [], [], {}, {'display': 'none'}, disabled, 'done', {
-                'header': 'No Counterfactuals Found',
-                'message': 'Could not generate counterfactuals for the selected class. This may be because there are no plausible instances of this class in the dataset.',
-                'icon': 'warning'
-            }
+            return [], [], {}, {'display': 'none'}, disabled, 'done', None
     except Exception as e:
         # Log the error
         print(f"Error in run_counterfactual: {e}")
         # Re-enable the "Run" button and update the store
         disabled = False
-        return [], [], {}, {'display': 'none'}, disabled, 'done', {
-            'header': 'Error',
-            'message': f'Error generating counterfactuals: {str(e)}',
-            'icon': 'danger'
-        }
+        return [], [], {}, {'display': 'none'}, disabled, 'done', None
 
 def validate_input_levels(df, selected_row):
     """
