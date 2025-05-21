@@ -179,43 +179,37 @@ app.layout = html.Div([
                                 html.Li(
                                     children=[
                                         html.Strong("Format: "),
-                                        "CSV, .data, or .dat files. Headers required. Auto-detects delimiter."
+                                        "CSV/.data/.dat with headers"
                                     ]
                                 ),
                                 html.Li(
                                     children=[
-                                        html.Strong("Data Type: "),
-                                        "All variables must be categorical/discrete. Numerical values will be automatically converted to categories."
+                                        html.Strong("Data: "),
+                                        "All variables must be categorical"
                                     ]
                                 ),
                                 html.Li(
                                     children=[
-                                        html.Strong("Variable Requirements: "),
-                                        "All variables must be both categorical AND independent of each other. The system cannot handle datasets with dependent variables (e.g., variables that are derived from or depend on other variables)."
+                                        html.Strong("Class: "),
+                                        "Required 'class' column (case-insensitive) with ≥2 examples per class"
                                     ]
                                 ),
                                 html.Li(
                                     children=[
-                                        html.Strong("Class Variable: "),
-                                        "Must have a column named 'class' containing the target variable. This column must be categorical."
+                                        html.Strong("Missing: "),
+                                        "Use '?'. Rows with missing values and columns with >30% missing will be removed"
                                     ]
                                 ),
                                 html.Li(
                                     children=[
-                                        html.Strong("Missing Values: "),
-                                        "Use '?' symbol. Rows with any missing values will be removed. Columns with >30% missing values will be removed."
+                                        html.Strong("Cleaning: "),
+                                        "Constant columns and deterministic dependencies will be removed"
                                     ]
                                 ),
                                 html.Li(
                                     children=[
-                                        html.Strong("Data Cleaning: "),
-                                        "The following will be automatically removed: constant columns, columns with >30% missing values, and perfectly correlated features."
-                                    ]
-                                ),
-                                html.Li(
-                                    children=[
-                                        html.Strong("Levels Validation: "),
-                                        "When selecting an instance for counterfactual generation, all its categorical levels must exist in the training data."
+                                        html.Strong("Target: "),
+                                        "Must be different from instance's current class"
                                     ]
                                 ),
                             ]),
