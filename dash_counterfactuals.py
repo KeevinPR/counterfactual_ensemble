@@ -33,9 +33,16 @@ uploaded_df = pd.DataFrame()
 app.layout = html.Div([
     dcc.Loading(
         id="global-spinner",
-        overlay_style={"visibility": "visible", "filter": "blur(1px)"},
-        type="circle",  # You can choose "circle", "dot", "default", etc.
+        type="default",
         fullscreen=False,
+        color="#00A2E1",
+        style={
+            "position": "fixed",
+            "top": "50%",
+            "left": "50%",
+            "transform": "translate(-50%, -50%)",
+            "zIndex": "999999"
+        },
         children=html.Div([
             # Upload Dataset Section
             html.H1("Counterfactuals", style={'textAlign': 'center'}),

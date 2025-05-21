@@ -252,3 +252,70 @@ h1 {
     background-color: #f0f8ff;
 }
 
+/* Estilos para el spinner de carga */
+._dash-loading {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 999999 !important;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    pointer-events: none !important;
+    width: auto !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+._dash-loading-callback {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 999999 !important;
+    pointer-events: none !important;
+}
+
+/* Estilo para el overlay del spinner */
+._dash-loading-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    z-index: 999998 !important;
+    backdrop-filter: blur(2px) !important;
+    pointer-events: none !important;
+}
+
+/* Contenedor del spinner */
+._dash-loading-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 999997 !important;
+    pointer-events: none !important;
+}
+
+/* Estilo para el spinner moderno */
+._dash-loading-default {
+    display: inline-block !important;
+    width: 40px !important;
+    height: 40px !important;
+    border: 3px solid rgba(0, 162, 225, 0.3) !important;
+    border-radius: 50% !important;
+    border-top-color: #00A2E1 !important;
+    animation: spin 0.8s ease-in-out infinite !important;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
