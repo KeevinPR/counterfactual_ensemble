@@ -310,8 +310,16 @@ app.layout = html.Div([
                 html.Div([
                     html.P("Models that will be used:", 
                            style={'textAlign': 'center', 'fontSize': '0.9rem', 'marginBottom': '0.25rem', 'color': '#6c757d'}),
-                    html.P("nb, tn, fssj, kdb, tanhc, baseline",
-                           style={'textAlign': 'center', 'fontSize': '0.8rem', 'color': '#6c757d'})
+                    html.Div([
+                        html.P("nb, tn, fssj, kdb, tanhc, baseline",
+                               style={'textAlign': 'center', 'fontSize': '0.8rem', 'color': '#6c757d', 'display': 'inline-block', 'marginRight': '5px'}),
+                        dbc.Button(
+                            html.I(className="fa fa-question-circle"),
+                            id="help-button-models",
+                            color="link",
+                            style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                        ),
+                    ], style={'textAlign': 'center'})
                 ], style={'marginTop': '0.5rem'})
             ], id='model-container', style={'display': 'none'}),
 
@@ -478,6 +486,44 @@ app.layout = html.Div([
         ],
         id="help-popover-results",
         target="help-button-results",
+        placement="right",
+        is_open=False,
+        trigger="hover"
+    ),
+
+    # New Popover for Models
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Models",
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P("The following Bayesian network models are used:"),
+                    html.Ul([
+                        html.Li("nb: Naive Bayes"),
+                        html.Li("tn: Tree Augmented Naive Bayes"),
+                        html.Li("fssj: Forward Sequential Selection and Joining"),
+                        html.Li("kdb: K-Dependence Bayesian Classifier"),
+                        html.Li("tanhc: Tree Augmented Naive Bayes with Hill Climbing"),
+                        html.Li("baseline: Simple baseline model for comparison")
+                    ]),
+                ],
+                style={
+                    "backgroundColor": "#ffffff",
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-models",
+        target="help-button-models",
         placement="right",
         is_open=False,
         trigger="hover"
@@ -992,6 +1038,17 @@ def parse_contents(contents, filename):
     State("help-popover-dataset-requirements", "is_open")
 )
 def toggle_dataset_requirements_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+# Callback for models popover
+@app.callback(
+    Output("help-popover-models", "is_open"),
+    Input("help-button-models", "n_clicks"),
+    State("help-popover-models", "is_open")
+)
+def toggle_models_popover(n, is_open):
     if n:
         return not is_open
     return is_open
