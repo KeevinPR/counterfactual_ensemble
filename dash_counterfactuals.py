@@ -283,13 +283,36 @@ app.layout = html.Div([
             # Number of Models and Run Button
             html.Div([
                 html.Div([
-                        html.Button('Run', id='run-button', n_clicks=0)
-                    ], style={'textAlign': 'center'}),
-                    dcc.Store(id='run-button-store'),
-                html.P("Models that will be use:", 
-                           style={'textAlign': 'center', 'fontSize': '12px'}),
-                html.P("nb, tn, fssj, kdb, tanhc, baseline",
-                           style={'textAlign': 'center', 'fontSize': '10px'}),
+                    dbc.Button(
+                        [
+                            html.I(className="fas fa-play-circle me-2"),
+                            "Generate Counterfactuals"
+                        ],
+                        id='run-button',
+                        n_clicks=0,
+                        color="info",
+                        className="btn-lg",
+                        style={
+                            'fontSize': '1.1rem',
+                            'padding': '0.75rem 2rem',
+                            'borderRadius': '8px',
+                            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)',
+                            'transition': 'all 0.3s ease',
+                            'backgroundColor': '#00A2E1',
+                            'border': 'none',
+                            'margin': '1rem 0',
+                            'color': 'white',
+                            'fontWeight': '500'
+                        }
+                    )
+                ], style={'textAlign': 'center'}),
+                dcc.Store(id='run-button-store'),
+                html.Div([
+                    html.P("Models that will be used:", 
+                           style={'textAlign': 'center', 'fontSize': '0.9rem', 'marginBottom': '0.25rem', 'color': '#6c757d'}),
+                    html.P("nb, tn, fssj, kdb, tanhc, baseline",
+                           style={'textAlign': 'center', 'fontSize': '0.8rem', 'color': '#6c757d'})
+                ], style={'marginTop': '0.5rem'})
             ], id='model-container', style={'display': 'none'}),
 
             # Results Table
@@ -682,7 +705,11 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
     
         # Check if data loaded correctly
         if df is None or df.empty:
-            return [], [], {}, {'display': 'none'}, False, None, None
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': 'No data available. Please upload a dataset first.',
+                'icon': 'danger'
+            }
     
         # Process the selected row
         selected_row = selectedRows[0]
@@ -691,17 +718,29 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
     
         # Validate input levels
         if not validate_input_levels(df, selected_row_clean):
-            return [], [], {}, {'display': 'none'}, False, None, None
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': 'Invalid input levels. Please check your data.',
+                'icon': 'danger'
+            }
     
         # Generate counterfactuals
         try:
             df_counterfactual = generate_counterfactuals(selected_row_clean, new_class, num_models, df)
         except ValueError as e:
             # Re-enable the "Run" button and show the error message
-            return [], [], {}, {'display': 'none'}, False, None, None
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': str(e),
+                'icon': 'danger'
+            }
         except Exception as e:
             # Re-enable the "Run" button and show the error message
-            return [], [], {}, {'display': 'none'}, False, None, None
+            return [], [], {}, {'display': 'none'}, False, None, {
+                'header': 'Error',
+                'message': f'An unexpected error occurred: {str(e)}',
+                'icon': 'danger'
+            }
     
         # Check if counterfactuals were generated
         if df_counterfactual is not None and not df_counterfactual.empty:
@@ -720,13 +759,21 @@ def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
         else:
             # Re-enable the "Run" button and update the store
             disabled = False
-            return [], [], {}, {'display': 'none'}, disabled, 'done', None
+            return [], [], {}, {'display': 'none'}, disabled, 'done', {
+                'header': 'Warning',
+                'message': 'No counterfactuals could be generated for the selected class.',
+                'icon': 'warning'
+            }
     except Exception as e:
         # Log the error
         print(f"Error in run_counterfactual: {e}")
         # Re-enable the "Run" button and update the store
         disabled = False
-        return [], [], {}, {'display': 'none'}, disabled, 'done', None
+        return [], [], {}, {'display': 'none'}, disabled, 'done', {
+            'header': 'Error',
+            'message': f'An unexpected error occurred: {str(e)}',
+            'icon': 'danger'
+        }
 
 def validate_input_levels(df, selected_row):
     """
