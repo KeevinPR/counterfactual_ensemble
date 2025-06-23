@@ -276,8 +276,22 @@ app.layout = html.Div([
                     ),
                 ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
-                    dcc.Dropdown(id='class-selector')
-                ], style={'width': '200px', 'margin': '0 auto', 'position': 'relative', 'zIndex': '9999'})
+                    dbc.Select(
+                        id='class-selector',
+                        placeholder="Select a class...",
+                        style={
+                            'width': '100%',
+                            'border': '1px solid #d0d7de',
+                            'borderRadius': '6px',
+                            'padding': '8px 12px',
+                            'backgroundColor': 'rgba(255, 255, 255, 0.8)',
+                            'backdropFilter': 'blur(10px)',
+                            'boxShadow': '0 1px 3px rgba(0, 0, 0, 0.1)',
+                            'transition': 'all 0.2s ease',
+                            'fontSize': '14px'
+                        }
+                    )
+                ], style={'width': '200px', 'margin': '0 auto'})
             ], id='class-container', style={'display': 'none'}),
              
             # Number of Models and Run Button
