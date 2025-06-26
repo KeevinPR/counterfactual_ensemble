@@ -6,6 +6,9 @@ import base64
 import io
 from dash_ag_grid import AgGrid
 import numpy as np
+import sys
+import os
+import logging
 from sklearn.model_selection import train_test_split
 from ensemble_counterfactuals.common_funcs import train_models
 from ensemble_counterfactuals.algorithms import ga, eda, moeda, nsga2, ebna, moebna
@@ -13,6 +16,36 @@ import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri, default_converter
 from rpy2.robjects.conversion import localconverter
 from scipy.stats import chi2_contingency
+
+# Add parent directory to sys.path to resolve imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+# Import session management components (absolute imports)
+try:
+    from dash_session_manager import start_session_manager, get_session_manager
+    from dash_session_components import create_session_components, setup_session_callbacks, register_long_running_process
+    SESSION_MANAGEMENT_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Session management not available: {e}")
+    SESSION_MANAGEMENT_AVAILABLE = False
+    # Define dummy functions to prevent errors
+    def start_session_manager(): pass
+    def get_session_manager(): return None
+    def create_session_components(): return None, html.Div()
+    def setup_session_callbacks(app): pass
+    def register_long_running_process(session_id): pass
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Start the global session manager
+if SESSION_MANAGEMENT_AVAILABLE:
+    start_session_manager()
 
 # Activate the pandas2ri conversion globally
 pandas2ri.activate()
@@ -29,8 +62,84 @@ server = app.server
 # Global variable to store the uploaded DataFrame
 uploaded_df = pd.DataFrame()
 
+# Create session components - but use dynamic session creation
+if SESSION_MANAGEMENT_AVAILABLE:
+    # Don't create session here - will be created dynamically per user
+    session_components = html.Div([
+        # Dynamic session store - will be populated by callback
+        dcc.Store(id='session-id-store', data=None),
+        dcc.Store(id='heartbeat-counter', data=0),
+        
+        # Interval component for heartbeat (every 10 seconds)
+        dcc.Interval(
+            id='heartbeat-interval',
+            interval=10*1000,  # 10 seconds
+            n_intervals=0,
+            disabled=False
+        ),
+        
+        # Interval for cleanup check (every 30 seconds)
+        dcc.Interval(
+            id='cleanup-interval', 
+            interval=30*1000,  # 30 seconds
+            n_intervals=0,
+            disabled=False
+        ),
+        
+        # Hidden div for status
+        html.Div(id='session-status', style={'display': 'none'}),
+        
+        # Client-side script for session management
+        html.Script("""
+            // Generate unique session ID per browser
+            if (!window.dashSessionId) {
+                window.dashSessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            }
+            
+            // Send heartbeat on page activity
+            document.addEventListener('click', function() {
+                if (window.dashHeartbeat) window.dashHeartbeat();
+            });
+            
+            document.addEventListener('keypress', function() {
+                if (window.dashHeartbeat) window.dashHeartbeat();
+            });
+            
+            // Handle page unload
+            window.addEventListener('beforeunload', function() {
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/dash/_disconnect', JSON.stringify({
+                        session_id: window.dashSessionId
+                    }));
+                }
+            });
+            
+            // Handle iframe unload (when parent page changes)
+            if (window.parent !== window) {
+                try {
+                    window.parent.addEventListener('beforeunload', function() {
+                        if (navigator.sendBeacon) {
+                            navigator.sendBeacon('/dash/_disconnect', JSON.stringify({
+                                session_id: window.dashSessionId
+                            }));
+                        }
+                    });
+                } catch(e) {
+                    console.log('Cross-origin iframe detected');
+                }
+            }
+        """),
+    ], style={'display': 'none'})
+    session_id = None  # Will be set dynamically
+else:
+    session_id = None
+    session_components = html.Div()
+
 # Layout of the application
 app.layout = html.Div([
+    # SESSION MANAGEMENT COMPONENTS - ADD THESE TO ALL DASH APPS
+    session_components,
+    
     dcc.Loading(
         id="global-spinner",
         type="default",
@@ -748,13 +857,19 @@ def display_selected_row_and_class(selectedRows, data):
     Input('run-button', 'n_clicks'),
     [State('predictor-table', 'selectedRows'),
      State('class-selector', 'value'),
-     State('cleaned-data-store', 'data')],
+     State('cleaned-data-store', 'data'),
+     State('session-id-store', 'data')],
     prevent_initial_call=True
 )
-def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data):
+def run_counterfactual(n_clicks, selectedRows, new_class, cleaned_data, session_id):
     num_models = 5
     if n_clicks is None or n_clicks == 0 or not selectedRows or new_class is None or cleaned_data is None:
         return [], [], {}, {'display': 'none'}, False, None, None  # Button enabled
+    
+    # REGISTER THIS PROCESS WITH SESSION MANAGER (CRITICAL FOR CLEANUP)
+    if SESSION_MANAGEMENT_AVAILABLE and session_id:
+        register_long_running_process(session_id)
+        logger.info(f"Registered counterfactual generation process for session {session_id}")
     
     # Disable the "Run" button during processing
     disabled = True
@@ -1114,6 +1229,55 @@ def show_notification(data):
     }
     
     return toast, container_style
+
+# Setup session management callbacks
+if SESSION_MANAGEMENT_AVAILABLE:
+    @app.callback(
+        Output('session-id-store', 'data'),
+        Input('heartbeat-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=False
+    )
+    def initialize_session(n_intervals, stored_session_id):
+        """Initialize session ID dynamically for each user."""
+        if stored_session_id is None:
+            # Create new session for this user
+            session_manager = get_session_manager()
+            new_session_id = session_manager.register_session()
+            session_manager.register_process(new_session_id, os.getpid())
+            logger.info(f"New counterfactuals session created: {new_session_id}")
+            return new_session_id
+        return stored_session_id
+    
+    @app.callback(
+        Output('session-status', 'children'),
+        Input('heartbeat-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=True
+    )
+    def send_heartbeat(n_intervals, session_id):
+        """Send heartbeat to session manager."""
+        if session_id:
+            session_manager = get_session_manager()
+            session_manager.heartbeat(session_id)
+            return f"Heartbeat sent: {n_intervals}"
+        return "No session"
+    
+    @app.callback(
+        Output('heartbeat-counter', 'data'),
+        Input('cleanup-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=True
+    )
+    def periodic_cleanup_check(n_intervals, session_id):
+        """Periodic check to ensure session is still active."""
+        if session_id:
+            session_manager = get_session_manager()
+            active_sessions = session_manager.get_active_sessions()
+            if session_id not in active_sessions:
+                # Session expired, try to refresh or handle gracefully
+                return n_intervals
+        return n_intervals
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8050)
