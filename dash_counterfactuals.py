@@ -133,7 +133,10 @@ if SESSION_MANAGEMENT_AVAILABLE:
     session_id = None  # Will be set dynamically
 else:
     session_id = None
-    session_components = html.Div()
+    session_components = html.Div([
+        # Even without session management, we need the store to exist for callbacks
+        dcc.Store(id='session-id-store', data=None),
+    ], style={'display': 'none'})
 
 # Layout of the application
 app.layout = html.Div([
